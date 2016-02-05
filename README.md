@@ -1,0 +1,1 @@
+Requires ```avahi-common``` and ```avahi-client``` libs 

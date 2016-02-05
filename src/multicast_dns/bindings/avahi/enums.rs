@@ -1,5 +1,3 @@
-#[warn(dead_code)]
-
 #[repr(C)]
 #[allow(dead_code)]
 pub enum AvahiClientFlags {
@@ -44,11 +42,4 @@ pub enum AvahiBrowserEvent {
     AVAHI_BROWSER_CACHE_EXHAUSTED,
     AVAHI_BROWSER_ALL_FOR_NOW,
     AVAHI_BROWSER_FAILURE
-}
-
-#[repr(C)]
-pub enum AvahiProtocol {
-  AVAHI_PROTO_INET = 0,
-  AVAHI_PROTO_INET6 = 1,
-  AVAHI_PROTO_UNSPEC = -1
 }

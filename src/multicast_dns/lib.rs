@@ -1,6 +1,6 @@
 use multicast_dns::bindings::avahi;
 
-use libc::{c_void, c_int, c_char, malloc, free, size_t};
+use libc::{c_void, c_int, c_char};
 use std::mem;
 
 use std::ffi::CString;
@@ -31,17 +31,13 @@ extern fn client_callback(
 }
 
 pub struct MulticastDNS {
-    ptr: *mut MulticastDNS
+    _ptr: u64
 }
 
 impl MulticastDNS {
     pub fn new() -> MulticastDNS {
-        unsafe {
-            let ptr = malloc(mem::size_of::<MulticastDNS>() as size_t) as *mut MulticastDNS;
-            // we *need* valid pointer.
-            assert!(!ptr.is_null());
-            MulticastDNS { ptr: ptr }
-        }
+        // FIXME: Not sure how to make mem::permutate to love my empy struct :/
+        MulticastDNS { _ptr: 0 }
     }
     
     fn on_new_service(&self, service_description: ServiceDescription) {
@@ -77,31 +73,13 @@ impl MulticastDNS {
                 
                 let mdns: MulticastDNS = unsafe { mem::transmute(userdata) };
                 mdns.on_new_service(service_description);
-            
-            /*unsafe {
-                let mut client: &mut avahi::AvahiClient = &mut *(userdata as *mut avahi::AvahiClient);
-                
-                avahi::avahi_service_resolver_new(
-                    client,
-                    interface,
-                    protocol,
-                    name,
-                    le_type,
-                    domain, 
-                    avahi::AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                    avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, 
-                    *Box::new(resolve_callback),
-                    userdata
-                );
-            }*/
-                
             }
             _ => println!("{:?}", event)
         }
     }
     
     /// List all available service by type_name.
-    pub fn list(&mut self, service_type: String, callback: fn(service_name: &str)) {
+    pub fn list(self, service_type: String) {
         let c_to_print = CString::new(service_type).unwrap();
     
         unsafe {
@@ -118,10 +96,6 @@ impl MulticastDNS {
                 ptr::null_mut(),
                 &mut error
             );
-            
-            // // This is weird.. figure it out
-            // let client_ptr: *mut c_void = client as *mut c_void;
-            let client_ptr: *mut c_void = self.ptr as *mut c_void;
 
             let _sb = avahi::avahi_service_browser_new(
                 client,
@@ -131,14 +105,11 @@ impl MulticastDNS {
                 ptr::null_mut(),
                 avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, 
                 *Box::new(MulticastDNS::browse_callback),
-                client_ptr
+                // We need reference to ourselves.
+                Box::into_raw(Box::new(self)) as *mut c_void
             );
 
             avahi::avahi_simple_poll_loop(simple_poll);
-
-            /*avahi::avahi_service_browser_free(sb);
-            avahi::avahi_client_free(client);
-            avahi::avahi_simple_poll_free(simple_poll);*/
         }
     }
 }
