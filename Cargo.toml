@@ -1,5 +1,5 @@
 [package]
-name = "mdns-browser-rust"
+name = "multicast-dns"
 version = "0.1.0"
 authors = ["Aleh Zasypkin <azasypkin@mozilla.com>"]
 
