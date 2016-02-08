@@ -100,21 +100,22 @@ extern "C" fn resolve_callback(r: *mut avahi::AvahiServiceResolver,
             println!("Failed to resolve");
         }
 
-        avahi::AvahiResolverEvent::AVAHI_RESOLVER_FOUND => unsafe {
-            let address_vector = Vec::with_capacity(avahi::AVAHI_ADDRESS_STR_MAX as usize)
-                                     .as_mut_ptr();
+        avahi::AvahiResolverEvent::AVAHI_RESOLVER_FOUND => {
+            let address_vector = Vec::with_capacity(avahi::AVAHI_ADDRESS_STR_MAX).as_ptr();
 
-            avahi::avahi_address_snprint(address_vector, avahi::AVAHI_ADDRESS_STR_MAX, address);
+            let result = unsafe {
+                avahi::avahi_address_snprint(address_vector, avahi::AVAHI_ADDRESS_STR_MAX, address);
 
-            let result = AvahiResolveResult {
-                name: CStr::from_ptr(name).to_str().unwrap(),
-                host_name: CStr::from_ptr(host_name).to_str().unwrap(),
-                address: CStr::from_ptr(address_vector).to_str().unwrap(),
-                port: port,
+                AvahiResolveResult {
+                    name: CStr::from_ptr(name).to_str().unwrap(),
+                    host_name: CStr::from_ptr(host_name).to_str().unwrap(),
+                    address: CStr::from_ptr(address_vector).to_str().unwrap(),
+                    port: port,
+                }
             };
 
             println!("Resolved! {:?}", result);
-        },
+        }
     }
 }
 

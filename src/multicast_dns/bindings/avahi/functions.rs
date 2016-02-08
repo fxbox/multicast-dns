@@ -47,6 +47,6 @@ extern "C" {
     pub fn avahi_address_snprint(ret_s: *const c_char, length: size_t, a: *const AvahiAddress);
 
     pub fn avahi_string_list_to_string(l: *mut AvahiStringList) -> *const c_char;
-    
+
     pub fn avahi_free(p: *mut c_void);
 }
