@@ -30,13 +30,44 @@ extern fn client_callback(
     userdata: *mut c_void) {
 }
 
+#[allow(unused_variables)]
+extern "C" fn browse_callback(
+    b: *mut avahi::AvahiServiceBrowser,
+    interface: c_int,
+    protocol: c_int,
+    event: avahi::AvahiBrowserEvent, 
+    name: *const c_char,
+    le_type: *const c_char,
+    domain: *const c_char,
+    flags: avahi::AvahiLookupResultFlags, 
+    userdata: *mut c_void
+) {
+    match event {
+        avahi::AvahiBrowserEvent::AVAHI_BROWSER_NEW => { 
+            let service_description = unsafe {
+                ServiceDescription::new(
+                    CStr::from_ptr(name).to_string_lossy().into_owned(),
+                    CStr::from_ptr(le_type).to_string_lossy().into_owned(),
+                    CStr::from_ptr(domain).to_string_lossy().into_owned()
+                )
+            };
+            
+            let mdns = unsafe { 
+                mem::transmute::<*mut c_void, MulticastDNS>(userdata)
+            };
+            mdns.on_new_service(service_description);
+        }
+        _ => println!("{:?}", event)
+    }
+}
+
 pub struct MulticastDNS {
-    _ptr: u64
+    _ptr: usize
 }
 
 impl MulticastDNS {
     pub fn new() -> MulticastDNS {
-        // FIXME: Not sure how to make mem::permutate to love my empy struct :/
+        // FIXME: Not sure how to make mem::transmute to love my empty struct :/
         MulticastDNS { _ptr: 0 }
     }
     
@@ -49,39 +80,8 @@ impl MulticastDNS {
         );
     }
     
-    #[allow(unused_variables)]
-    extern "C" fn browse_callback(
-        b: *mut avahi::AvahiServiceBrowser,
-        interface: c_int,
-        protocol: c_int,
-        event: avahi::AvahiBrowserEvent, 
-        name: *const c_char,
-        le_type: *const c_char,
-        domain: *const c_char,
-        flags: avahi::AvahiLookupResultFlags, 
-        userdata: *mut c_void
-    ) {
-        match event {
-            avahi::AvahiBrowserEvent::AVAHI_BROWSER_NEW => { 
-                let service_description = unsafe {
-                    ServiceDescription::new(
-                        CStr::from_ptr(name).to_string_lossy().into_owned(),
-                        CStr::from_ptr(le_type).to_string_lossy().into_owned(),
-                        CStr::from_ptr(domain).to_string_lossy().into_owned()
-                    )
-                };
-                
-                let mdns: MulticastDNS = unsafe { mem::transmute(userdata) };
-                mdns.on_new_service(service_description);
-            }
-            _ => println!("{:?}", event)
-        }
-    }
-    
     /// List all available service by type_name.
-    pub fn list(self, service_type: String) {
-        let c_to_print = CString::new(service_type).unwrap();
-    
+    pub fn list(self, service_type: String) {  
         unsafe {
             let mut error: i32 = 0;
             
@@ -101,12 +101,12 @@ impl MulticastDNS {
                 client,
                 -1,
                 -1,
-                c_to_print.as_ptr(), 
+                CString::new(service_type).unwrap().as_ptr(), 
                 ptr::null_mut(),
                 avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT, 
-                *Box::new(MulticastDNS::browse_callback),
-                // We need reference to ourselves.
-                Box::into_raw(Box::new(self)) as *mut c_void
+                *Box::new(browse_callback),
+                // We need reference to ourselves in the callback.
+                mem::transmute(&self)
             );
 
             avahi::avahi_simple_poll_loop(simple_poll);
