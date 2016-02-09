@@ -1,7 +1,11 @@
 #[repr(C)]
 #[allow(dead_code)]
 pub enum AvahiClientFlags {
+    /// Don't read user configuration. 
     AVAHI_CLIENT_IGNORE_USER_CONFIG,
+
+    /// Don't fail if the daemon is not available when avahi_client_new() is called,
+    /// instead enter AVAHI_CLIENT_CONNECTING state and wait for the daemon to appear. 
     AVAHI_CLIENT_NO_FAIL,
 }
 

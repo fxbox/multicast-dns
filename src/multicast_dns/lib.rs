@@ -1,6 +1,6 @@
 use multicast_dns::bindings::avahi;
 
-use libc::{c_void, c_int, c_char};
+use libc::{c_void, c_int, c_char, free};
 use std::mem;
 
 use std::ffi::CString;
@@ -8,17 +8,13 @@ use std::ffi::CStr;
 use std::ptr;
 
 #[derive(Debug)]
-pub struct AvahiResolveResult<'a> {
-    pub name: &'a str,
-    pub host_name: &'a str,
+struct ServiceDescription<'a> {
     pub address: &'a str,
+    pub domain: &'a str,
+    pub host_name: &'a str,
+    pub name: &'a str,
     pub port: u16,
-}
-
-struct ServiceDescription {
-    name: String,
-    type_name: String,
-    domain: String,
+    pub type_name: &'a str,
 }
 
 struct ClientReference<'a> {
@@ -26,12 +22,21 @@ struct ClientReference<'a> {
     multicast_dns: &'a MulticastDNS,
 }
 
-impl ServiceDescription {
-    fn new(name: String, type_name: String, domain: String) -> ServiceDescription {
+impl<'a> ServiceDescription<'a> {
+    fn new(address: &'a str,
+           domain: &'a str,
+           host_name: &'a str,
+           name: &'a str,
+           port: u16,
+           type_name: &'a str)
+           -> ServiceDescription<'a> {
         ServiceDescription {
-            name: name,
-            type_name: type_name,
+            address: address,
             domain: domain,
+            host_name: host_name,
+            name: name,
+            port: port,
+            type_name: type_name,
         }
     }
 }
@@ -53,29 +58,19 @@ extern "C" fn browse_callback(b: *mut avahi::AvahiServiceBrowser,
                               flags: avahi::AvahiLookupResultFlags,
                               userdata: *mut c_void) {
     match event {
-        avahi::AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
-            let service_description = unsafe {
-                ServiceDescription::new(CStr::from_ptr(name).to_string_lossy().into_owned(),
-                                        CStr::from_ptr(le_type).to_string_lossy().into_owned(),
-                                        CStr::from_ptr(domain).to_string_lossy().into_owned())
-            };
-
-            let mdns = unsafe { mem::transmute::<*mut c_void, &mut ClientReference>(userdata) };
-            mdns.multicast_dns.on_new_service(service_description);
-
-            unsafe {
-                avahi::avahi_service_resolver_new(mdns.client,
-                                                  interface,
-                                                  protocol,
-                                                  name,
-                                                  le_type,
-                                                  domain,
-                                                  avahi::AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                                  avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT,
-                                                  *Box::new(resolve_callback),
-                                                  userdata);
-            }
-        }
+        avahi::AvahiBrowserEvent::AVAHI_BROWSER_NEW => unsafe {
+            let client = mem::transmute::<*mut c_void, &mut ClientReference>(userdata).client;
+            avahi::avahi_service_resolver_new(client,
+                                              interface,
+                                              protocol,
+                                              name,
+                                              le_type,
+                                              domain,
+                                              avahi::AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                                              avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT,
+                                              *Box::new(resolve_callback),
+                                              userdata);
+        },
         _ => println!("{:?}", event),
     }
 }
@@ -103,18 +98,25 @@ extern "C" fn resolve_callback(r: *mut avahi::AvahiServiceResolver,
         avahi::AvahiResolverEvent::AVAHI_RESOLVER_FOUND => {
             let address_vector = Vec::with_capacity(avahi::AVAHI_ADDRESS_STR_MAX).as_ptr();
 
-            let result = unsafe {
+            let (mdns, address, domain, host_name, name, le_type) = unsafe {
                 avahi::avahi_address_snprint(address_vector, avahi::AVAHI_ADDRESS_STR_MAX, address);
 
-                AvahiResolveResult {
-                    name: CStr::from_ptr(name).to_str().unwrap(),
-                    host_name: CStr::from_ptr(host_name).to_str().unwrap(),
-                    address: CStr::from_ptr(address_vector).to_str().unwrap(),
-                    port: port,
-                }
+                (mem::transmute::<*mut c_void, &mut ClientReference>(userdata).multicast_dns,
+                 CStr::from_ptr(address_vector),
+                 CStr::from_ptr(domain),
+                 CStr::from_ptr(host_name),
+                 CStr::from_ptr(name),
+                 CStr::from_ptr(le_type))
             };
 
-            println!("Resolved! {:?}", result);
+            let service_description = ServiceDescription::new(address.to_str().unwrap(),
+                                                              domain.to_str().unwrap(),
+                                                              host_name.to_str().unwrap(),
+                                                              name.to_str().unwrap(),
+                                                              port,
+                                                              le_type.to_str().unwrap());
+
+            mdns.on_new_service(service_description);
         }
     }
 }
@@ -127,19 +129,15 @@ impl MulticastDNS {
     }
 
     fn on_new_service(&self, service_description: ServiceDescription) {
-        println!("New service discovered: {} {} {}",
-                 service_description.name,
-                 service_description.type_name,
-                 service_description.domain);
+        println!("New service discovered: {:?}", service_description);
     }
 
     /// List all available service by type_name.
-    pub fn list(&mut self, service_type: String) {
+    pub fn list(&self, service_type: String) {
         unsafe {
-            let mut error: i32 = 0;
+            let mut client_error_code: i32 = 0;
 
             let simple_poll = avahi::avahi_simple_poll_new();
-
             let poll = avahi::avahi_simple_poll_get(simple_poll);
 
             let client =
@@ -147,23 +145,38 @@ impl MulticastDNS {
                                         avahi::AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
                                         *Box::new(client_callback),
                                         ptr::null_mut(),
-                                        &mut error);
+                                        &mut client_error_code);
+
+            // Check that we've created client successfully, otherwise try to resolve error
+            // into human-readable string.
+            if client.is_null() {
+                let error_string = unsafe {
+                    CStr::from_ptr(avahi::avahi_strerror(client_error_code))
+                };
+                panic!("Failed to create avahi client: {}",
+                       error_string.to_str().unwrap());
+                free(client as *mut c_void);
+            }
+
             let client_reference = ClientReference {
                 client: client,
                 multicast_dns: &self,
             };
 
-            let _sb =
-                avahi::avahi_service_browser_new(client,
-                                                 -1,
-                                                 -1,
-                                                 CString::new(service_type).unwrap().as_ptr(),
-                                                 ptr::null_mut(),
-                                                 avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT,
-                                                 *Box::new(browse_callback),
-                                                 mem::transmute(&client_reference));
+            let sb = avahi::avahi_service_browser_new(client,
+                                                      -1,
+                                                      -1,
+                                                      CString::new(service_type).unwrap().as_ptr(),
+                                                      ptr::null_mut(),
+                                                      avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT,
+                                                      *Box::new(browse_callback),
+                                                      mem::transmute(&client_reference));
 
             avahi::avahi_simple_poll_loop(simple_poll);
+
+            avahi::avahi_service_browser_free(sb);
+            avahi::avahi_client_free(client);
+            avahi::avahi_simple_poll_free(simple_poll);
         }
     }
 }
