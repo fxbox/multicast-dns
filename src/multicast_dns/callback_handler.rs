@@ -6,6 +6,13 @@ use libc::{c_void, c_int, c_char};
 use multicast_dns::bindings::avahi;
 
 #[derive(Debug)]
+pub struct BrowsedServiceDescription<'a> {
+    pub domain: &'a str,
+    pub name: &'a str,
+    pub type_name: &'a str,
+}
+
+#[derive(Debug)]
 pub struct ServiceDescription<'a> {
     pub address: &'a str,
     pub domain: &'a str,
@@ -15,28 +22,9 @@ pub struct ServiceDescription<'a> {
     pub type_name: &'a str,
 }
 
-impl<'a> ServiceDescription<'a> {
-    fn new(address: &'a str,
-           domain: &'a str,
-           host_name: &'a str,
-           name: &'a str,
-           port: u16,
-           type_name: &'a str)
-           -> ServiceDescription<'a> {
-        ServiceDescription {
-            address: address,
-            domain: domain,
-            host_name: host_name,
-            name: name,
-            port: port,
-            type_name: type_name,
-        }
-    }
-}
-
 pub trait SafeHandler {
-    fn on_browse(&self);
-    fn on_resolve(&self, service_description: ServiceDescription);
+    fn on_service_browsed(&self, service_description: BrowsedServiceDescription);
+    fn on_service_resolved(&self, service_description: ServiceDescription);
 }
 
 pub struct ClientReference<'a, T: 'a>
@@ -69,6 +57,15 @@ impl CallbackHandler {
             avahi::AvahiBrowserEvent::AVAHI_BROWSER_NEW => unsafe {
                 let client_reference = mem::transmute::<*mut c_void,
                                                         &mut ClientReference<T>>(userdata);
+
+                client_reference.handler.on_service_browsed(BrowsedServiceDescription {
+                    domain: CStr::from_ptr(domain).to_str().unwrap(),
+                    name: CStr::from_ptr(name).to_str().unwrap(),
+                    type_name: CStr::from_ptr(le_type).to_str().unwrap(),
+                });
+
+                // Theoretically we should not try to resolve automatically, instead it should
+                // be decided in `on_service_browsed` callback.
                 avahi::avahi_service_resolver_new(client_reference.client,
                                                   interface,
                                                   protocol,
@@ -119,14 +116,14 @@ impl CallbackHandler {
                      CStr::from_ptr(le_type))
                 };
 
-                let service_description = ServiceDescription::new(address.to_str().unwrap(),
-                                                                  domain.to_str().unwrap(),
-                                                                  host_name.to_str().unwrap(),
-                                                                  name.to_str().unwrap(),
-                                                                  port,
-                                                                  le_type.to_str().unwrap());
-
-                handler.on_resolve(service_description);
+                handler.on_service_resolved(ServiceDescription {
+                    address: address.to_str().unwrap(),
+                    domain: domain.to_str().unwrap(),
+                    host_name: host_name.to_str().unwrap(),
+                    name: name.to_str().unwrap(),
+                    port: port,
+                    type_name: le_type.to_str().unwrap(),
+                });
             }
         }
     }

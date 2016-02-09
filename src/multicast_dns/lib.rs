@@ -3,6 +3,7 @@ use multicast_dns::callback_handler::CallbackHandler;
 use multicast_dns::callback_handler::SafeHandler;
 use multicast_dns::callback_handler::ClientReference;
 use multicast_dns::callback_handler::ServiceDescription;
+use multicast_dns::callback_handler::BrowsedServiceDescription;
 
 use libc::{c_void, free};
 use std::mem;
@@ -68,9 +69,11 @@ impl MulticastDNS {
 }
 
 impl SafeHandler for MulticastDNS {
-    fn on_browse(&self) {}
+    fn on_service_browsed(&self, service_description: BrowsedServiceDescription) {
+        println!("Service browsed: {:?}", service_description);
+    }
 
-    fn on_resolve(&self, service_description: ServiceDescription) {
-        println!("New service discovered: {:?}", service_description);
+    fn on_service_resolved(&self, service_description: ServiceDescription) {
+        println!("Service resolved: {:?}", service_description);
     }
 }
