@@ -22,7 +22,10 @@ pub enum AvahiClientState {
 #[repr(C)]
 #[allow(dead_code)]
 pub enum AvahiLookupFlags {
+    /// When doing service resolving, don't lookup TXT record.
     AVAHI_LOOKUP_NO_TXT,
+
+    /// When doing service resolving, don't lookup A/AAAA record.
     AVAHI_LOOKUP_NO_ADDRESS,
 }
 
@@ -49,14 +52,51 @@ pub enum AvahiBrowserEvent {
 }
 
 #[repr(C)]
+#[allow(dead_code)]
 pub enum AvahiProtocol {
+    /// IPv4.
     AVAHI_PROTO_INET = 0,
+
+    /// IPv6.
     AVAHI_PROTO_INET6 = 1,
+
+    /// Unspecified/all protocol(s).
     AVAHI_PROTO_UNSPEC = -1,
 }
 
 #[repr(C)]
+#[allow(dead_code)]
+pub enum AvahiIfIndex {
+    /// Dummy variant to overcome [E0083].
+    DUMMY = 0,
+    /// Unspecified/all interface(s).
+    AVAHI_IF_UNSPEC = -1,
+}
+
+#[repr(C)]
+#[allow(dead_code)]
 pub enum AvahiResolverEvent {
     AVAHI_RESOLVER_FOUND,
     AVAHI_RESOLVER_FAILURE,
+}
+
+#[repr(C)]
+#[allow(dead_code)]
+pub enum AvahiDomainBrowserType {
+    /// Browse for a list of available browsing domains.
+    AVAHI_DOMAIN_BROWSER_BROWSE,
+
+    /// Browse for the default browsing domain.
+    AVAHI_DOMAIN_BROWSER_BROWSE_DEFAULT,
+
+    /// Browse for a list of available registering domains.
+    AVAHI_DOMAIN_BROWSER_REGISTER,
+
+    /// Browse for the default registering domain.
+    AVAHI_DOMAIN_BROWSER_REGISTER_DEFAULT,
+
+    /// Legacy browse domain - see DNS-SD spec for more information.
+    AVAHI_DOMAIN_BROWSER_BROWSE_LEGACY,
+
+    AVAHI_DOMAIN_BROWSER_MAX,
 }

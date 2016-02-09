@@ -5,38 +5,66 @@ use libc::{c_void, c_int, c_char};
 
 use multicast_dns::bindings::avahi;
 
-trait SafeHandler {
-    fn on_browse(&self);
-    fn on_resolve(&self);
+#[derive(Debug)]
+pub struct ServiceDescription<'a> {
+    pub address: &'a str,
+    pub domain: &'a str,
+    pub host_name: &'a str,
+    pub name: &'a str,
+    pub port: u16,
+    pub type_name: &'a str,
 }
 
-struct ClientReference<'a, T: 'a>
+impl<'a> ServiceDescription<'a> {
+    fn new(address: &'a str,
+           domain: &'a str,
+           host_name: &'a str,
+           name: &'a str,
+           port: u16,
+           type_name: &'a str)
+           -> ServiceDescription<'a> {
+        ServiceDescription {
+            address: address,
+            domain: domain,
+            host_name: host_name,
+            name: name,
+            port: port,
+            type_name: type_name,
+        }
+    }
+}
+
+pub trait SafeHandler {
+    fn on_browse(&self);
+    fn on_resolve(&self, service_description: ServiceDescription);
+}
+
+pub struct ClientReference<'a, T: 'a>
     where T: SafeHandler
 {
-    client: *mut avahi::AvahiClient,
-    handler: &'a T,
+    pub client: *mut avahi::AvahiClient,
+    pub handler: &'a T,
 }
 
-struct CallbackHandler<T> {
-    handler: T,
-}
+pub struct CallbackHandler;
 
-impl<T> CallbackHandler<T> where T: SafeHandler
-{
-    pub fn new(value: T) -> CallbackHandler<T> {
-        CallbackHandler { handler: value }
+impl CallbackHandler {
+    #[allow(unused_variables)]
+    pub extern "C" fn client_callback(s: *mut avahi::AvahiClient,
+                                      state: avahi::AvahiClientState,
+                                      userdata: *mut c_void) {
     }
 
     #[allow(unused_variables)]
-    extern "C" fn browse_callback(b: *mut avahi::AvahiServiceBrowser,
-                                  interface: c_int,
-                                  protocol: c_int,
-                                  event: avahi::AvahiBrowserEvent,
-                                  name: *const c_char,
-                                  le_type: *const c_char,
-                                  domain: *const c_char,
-                                  flags: avahi::AvahiLookupResultFlags,
-                                  userdata: *mut c_void) {
+    pub extern "C" fn browse_callback<T: SafeHandler>(b: *mut avahi::AvahiServiceBrowser,
+                                                      interface: c_int,
+                                                      protocol: c_int,
+                                                      event: avahi::AvahiBrowserEvent,
+                                                      name: *const c_char,
+                                                      le_type: *const c_char,
+                                                      domain: *const c_char,
+                                                      flags: avahi::AvahiLookupResultFlags,
+                                                      userdata: *mut c_void) {
         match event {
             avahi::AvahiBrowserEvent::AVAHI_BROWSER_NEW => unsafe {
                 let client_reference = mem::transmute::<*mut c_void,
@@ -49,7 +77,7 @@ impl<T> CallbackHandler<T> where T: SafeHandler
                                                   domain,
                                                   avahi::AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                                   avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT,
-                                                  *Box::new(CallbackHandler::<T>::resolve_callback),
+                                                  *Box::new(CallbackHandler::resolve_callback::<T>),
                                                   userdata);
             },
             _ => println!("{:?}", event),
@@ -57,19 +85,19 @@ impl<T> CallbackHandler<T> where T: SafeHandler
     }
 
     #[allow(unused_variables)]
-    extern "C" fn resolve_callback(r: *mut avahi::AvahiServiceResolver,
-                                   interface: c_int,
-                                   protocol: c_int,
-                                   event: avahi::AvahiResolverEvent,
-                                   name: *const c_char,
-                                   le_type: *const c_char,
-                                   domain: *const c_char,
-                                   host_name: *const c_char,
-                                   address: *const avahi::AvahiAddress,
-                                   port: u16,
-                                   txt: *mut avahi::AvahiStringList,
-                                   flags: avahi::AvahiLookupResultFlags,
-                                   userdata: *mut c_void) {
+    extern "C" fn resolve_callback<T: SafeHandler>(r: *mut avahi::AvahiServiceResolver,
+                                                   interface: c_int,
+                                                   protocol: c_int,
+                                                   event: avahi::AvahiResolverEvent,
+                                                   name: *const c_char,
+                                                   le_type: *const c_char,
+                                                   domain: *const c_char,
+                                                   host_name: *const c_char,
+                                                   address: *const avahi::AvahiAddress,
+                                                   port: u16,
+                                                   txt: *mut avahi::AvahiStringList,
+                                                   flags: avahi::AvahiLookupResultFlags,
+                                                   userdata: *mut c_void) {
         match event {
             avahi::AvahiResolverEvent::AVAHI_RESOLVER_FAILURE => {
                 println!("Failed to resolve");
@@ -90,17 +118,15 @@ impl<T> CallbackHandler<T> where T: SafeHandler
                      CStr::from_ptr(name),
                      CStr::from_ptr(le_type))
                 };
-                
-                handler.on_resolve();
 
-//                 let service_description = ServiceDescription::new(address.to_str().unwrap(),
-//                                                                   domain.to_str().unwrap(),
-//                                                                   host_name.to_str().unwrap(),
-//                                                                   name.to_str().unwrap(),
-//                                                                   port,
-//                                                                   le_type.to_str().unwrap());
-// 
-//                 mdns.on_new_service(service_description);
+                let service_description = ServiceDescription::new(address.to_str().unwrap(),
+                                                                  domain.to_str().unwrap(),
+                                                                  host_name.to_str().unwrap(),
+                                                                  name.to_str().unwrap(),
+                                                                  port,
+                                                                  le_type.to_str().unwrap());
+
+                handler.on_resolve(service_description);
             }
         }
     }

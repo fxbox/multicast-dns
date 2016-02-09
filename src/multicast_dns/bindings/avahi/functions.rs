@@ -25,8 +25,24 @@ extern "C" {
     /// Abstracted poll API object - `AvahiPoll`.
     pub fn avahi_simple_poll_get(simple_poll: *mut AvahiSimplePoll) -> *mut AvahiPoll;
 
-    pub fn avahi_simple_poll_loop(s: *mut AvahiSimplePoll) -> c_int;
-    pub fn avahi_simple_poll_free(s: *mut AvahiSimplePoll);
+    /// Call `avahi_simple_poll_iterate` in a loop and return if it
+    /// returns non-zero.
+    ///
+    /// # Arguments
+    ///
+    /// * `simple_poll` - Main loop object returned from `avahi_simple_poll_new`.
+    ///
+    /// # Return value
+    ///
+    /// Non-zero if `avahi_simple_poll_iterate` return non-zero value.
+    pub fn avahi_simple_poll_loop(simple_poll: *mut AvahiSimplePoll) -> c_int;
+
+    /// Free a main loop object.
+    ///
+    /// # Arguments
+    ///
+    /// * `simple_poll` - Main loop object returned from `avahi_simple_poll_new`.
+    pub fn avahi_simple_poll_free(simple_poll: *mut AvahiSimplePoll);
 
     /// Creates a new client instance.
     ///
@@ -41,11 +57,12 @@ extern "C" {
     ///                the AvahiClient pointer returned by avahi_client_new() in a global
     ///                variable and assume that this global variable already contains the valid
     ///                pointer when the callback is called for the first time. A work-around for
-    ///                this is to always use the AvahiClient pointer passed to the callback function
-    ///                instead of the global pointer.
-    /// * `userdata` - Some arbitrary user data pointer that will be passed to the callback function.
+    ///                this is to always use the AvahiClient pointer passed to the callback
+    ///                function instead of the global pointer.
+    /// * `userdata` - Some arbitrary user data pointer that will be passed to the callback.
     /// * `error` -	If creation of the client fails, this integer will contain the error cause.
-    ///             May be NULL if you aren't interested in the reason why avahi_client_new() failed.
+    ///             May be NULL if you aren't interested in the reason why `avahi_client_new()`
+    ///             has failed.
     ///
     /// # Return value
     ///
@@ -63,9 +80,28 @@ extern "C" {
 
     pub fn avahi_client_free(client: *mut AvahiClient);
 
+
+    /// Browse for domains on the local network.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - Active `AvahiClient` instance.
+    /// * `interface` - Numeric network interface index. Takes OS dependent values and
+    ///                 the special constant AVAHI_IF_UNSPEC (-1).
+    /// * `protocol` - Protocol family specification `AvahiProtocol`.
+    /// * `domain` - Domain to look for.
+    /// * `btype` - The type of domain to browse for `AvahiDomainBrowserType`.
+    /// * `flags` - Flags for lookup functions `AvahiLookupFlags`.
+    /// * `callback` - `AvahiDomainBrowserCallback` callback to be called for every new
+    ///                found service.
+    /// * `userdata` - Some arbitrary user data pointer that will be passed to the callback.
+    ///
+    /// # Return value
+    ///
+    /// A domain browser `AvahiServiceBrowser` object.
     pub fn avahi_service_browser_new(client: *mut AvahiClient,
-                                     interface: c_int,
-                                     protocol: c_int,
+                                     interface: AvahiIfIndex,
+                                     protocol: AvahiProtocol,
                                      le_type: *const c_char,
                                      domain: *const c_char,
                                      flags: AvahiLookupFlags,
@@ -89,9 +125,9 @@ extern "C" {
 
     pub fn avahi_address_snprint(ret_s: *const c_char, length: size_t, a: *const AvahiAddress);
 
-    pub fn avahi_string_list_to_string(l: *mut AvahiStringList) -> *const c_char;
+    // pub fn avahi_string_list_to_string(l: *mut AvahiStringList) -> *const c_char;
 
-    pub fn avahi_free(p: *mut c_void);
+    // pub fn avahi_free(p: *mut c_void);
 
     /// Return a human readable error string for the specified error code.
     ///
