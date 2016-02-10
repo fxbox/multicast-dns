@@ -159,9 +159,25 @@ extern "C" {
 
     pub fn avahi_address_snprint(ret_s: *const c_char, length: size_t, a: *const AvahiAddress);
 
-    // pub fn avahi_string_list_to_string(l: *mut AvahiStringList) -> *const c_char;
+    /// Convert the string list object to a single character string, seperated by spaces
+    /// and enclosed in "". `avahi_free` should always be called for the result!
+    /// This function doesn't work well with strings that contain NUL bytes.
+    ///
+    /// # Arguments
+    ///
+    /// * `string_list` - string list instance.
+    ///
+    /// # Return value
+    ///
+    /// Single character string, seperated by spaces and enclosed in "".
+    pub fn avahi_string_list_to_string(string_list: *mut AvahiStringList) -> *const c_char;
 
-    // pub fn avahi_free(p: *mut c_void);
+    /// Free some memory.
+    ///
+    /// # Arguments
+    ///
+    /// * `pointer` - pointer to free memory for.
+    pub fn avahi_free(pointer: *mut c_void);
 
     /// Return a human readable error string for the specified error code.
     ///

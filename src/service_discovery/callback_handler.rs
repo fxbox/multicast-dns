@@ -20,6 +20,7 @@ pub struct ServiceDescription<'a> {
     pub name: &'a str,
     pub port: u16,
     pub type_name: &'a str,
+    pub txt: &'a str,
 }
 
 pub trait DiscoveryEventHandler {
@@ -103,17 +104,23 @@ impl CallbackHandler {
             avahi::AvahiResolverEvent::AVAHI_RESOLVER_FOUND => {
                 let address_vector = Vec::with_capacity(avahi::AVAHI_ADDRESS_STR_MAX).as_ptr();
 
-                let (handler, address, domain, host_name, name, service_type) = unsafe {
+                let (handler, address, domain, host_name, name, service_type, txt) = unsafe {
                     avahi::avahi_address_snprint(address_vector,
                                                  avahi::AVAHI_ADDRESS_STR_MAX,
                                                  address);
+
+                    let txt_pointer = avahi::avahi_string_list_to_string(txt);
+                    let txt = CStr::from_ptr(txt_pointer).to_string_lossy().into_owned();
+                    // let t1 = ffi::c_str_to_bytes(&txt);
+                    avahi::avahi_free(txt_pointer as *mut c_void);
 
                     (mem::transmute::<*mut c_void, &mut ClientReference<T>>(userdata).handler,
                      CStr::from_ptr(address_vector),
                      CStr::from_ptr(domain),
                      CStr::from_ptr(host_name),
                      CStr::from_ptr(name),
-                     CStr::from_ptr(service_type))
+                     CStr::from_ptr(service_type),
+                     txt)
                 };
 
                 handler.on_service_resolved(ServiceDescription {
@@ -123,6 +130,7 @@ impl CallbackHandler {
                     name: name.to_str().unwrap(),
                     port: port,
                     type_name: service_type.to_str().unwrap(),
+                    txt: &txt,
                 });
             }
         }
