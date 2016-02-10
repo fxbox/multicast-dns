@@ -22,6 +22,7 @@ pub enum AvahiClientState {
 #[repr(C)]
 #[allow(dead_code)]
 pub enum AvahiLookupFlags {
+    AVAHI_LOOKUP_UNSPEC = 0,
     /// When doing service resolving, don't lookup TXT record.
     AVAHI_LOOKUP_NO_TXT,
 

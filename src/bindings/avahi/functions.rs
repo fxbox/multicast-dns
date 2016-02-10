@@ -90,7 +90,7 @@ extern "C" {
     ///                 the special constant AVAHI_IF_UNSPEC (-1).
     /// * `protocol` - Protocol family specification `AvahiProtocol`.
     /// * `domain` - Domain to look for.
-    /// * `btype` - The type of domain to browse for `AvahiDomainBrowserType`.
+    /// * `service_type` - The type of domain to browse for `AvahiDomainBrowserType`.
     /// * `flags` - Flags for lookup functions `AvahiLookupFlags`.
     /// * `callback` - `AvahiDomainBrowserCallback` callback to be called for every new
     ///                found service.
@@ -102,18 +102,52 @@ extern "C" {
     pub fn avahi_service_browser_new(client: *mut AvahiClient,
                                      interface: AvahiIfIndex,
                                      protocol: AvahiProtocol,
-                                     le_type: *const c_char,
+                                     service_type: *const c_char,
                                      domain: *const c_char,
                                      flags: AvahiLookupFlags,
                                      callback: ServiceBrowserCallback,
                                      userdata: *mut c_void)
                                      -> *mut AvahiServiceBrowser;
 
+    /// Create a new service resolver object.
+    ///
+    /// Please make sure to pass all the service data you received via
+    /// `avahi_service_browser_new()` callback function, especially `interface`
+    /// and `protocol`.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - Active `AvahiClient` instance.
+    /// * `interface` - Interface argument received in `AvahiServiceBrowserCallback`.
+    /// * `protocol` - The protocol argument specifies the protocol (IPv4 or IPv6)
+    ///                to use as transport for the queries which are sent out by this
+    ///                resolver. Generally, on `protocol` you should only pass what was
+    ///                supplied to you as parameter to your `AvahiServiceBrowserCallback`.
+    ///                Or, more technically speaking: protocol specifies if the mDNS
+    ///                queries should be sent as UDP/IPv4 resp. UDP/IPv6 packets.
+    /// * `name` - Name argument received in `AvahiServiceBrowserCallback`.
+    /// * `service_type` - Service type argument received in `AvahiServiceBrowserCallback`.
+    /// * `domain` - Domain argument received in `AvahiServiceBrowserCallback`.
+    /// * `aprotocol` - The `aprotocol` argument specifies the adress family
+    ///                 (IPv4 or IPv6) of the address of the service we are looking for.
+    ///                 In `aprotocol` you should pass what your application code can deal
+    ///                 with when connecting to the service. Or, more technically speaking:
+    ///                 `aprotocol` specifies whether the query is for a A resp. AAAA
+    ///                 resource record. AVAHI_PROTO_UNSPEC if your application can deal
+    ///                 with both IPv4 and IPv6
+    /// * `flags` - Flags for lookup functions `AvahiLookupFlags`.
+    /// * `callback` - `ServiceResolverCallback` callback to be called for every new
+    ///                resolved service.
+    /// * `userdata` - Some arbitrary user data pointer that will be passed to the callback.
+    ///
+    /// # Return value
+    ///
+    /// A service resolver `AvahiServiceResolver` object.
     pub fn avahi_service_resolver_new(client: *mut AvahiClient,
                                       interface: c_int,
                                       protocol: c_int,
                                       name: *const c_char,
-                                      le_type: *const c_char,
+                                      service_type: *const c_char,
                                       domain: *const c_char,
                                       aprotocol: AvahiProtocol,
                                       flags: AvahiLookupFlags,

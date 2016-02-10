@@ -1,9 +1,9 @@
-use multicast_dns::bindings::avahi;
-use multicast_dns::callback_handler::CallbackHandler;
-use multicast_dns::callback_handler::SafeHandler;
-use multicast_dns::callback_handler::ClientReference;
-use multicast_dns::callback_handler::ServiceDescription;
-use multicast_dns::callback_handler::BrowsedServiceDescription;
+use bindings::avahi;
+use service_discovery::callback_handler::CallbackHandler;
+use service_discovery::callback_handler::DiscoveryEventHandler;
+use service_discovery::callback_handler::ClientReference;
+use service_discovery::callback_handler::ServiceDescription;
+use service_discovery::callback_handler::BrowsedServiceDescription;
 
 use libc::{c_void, free};
 use std::mem;
@@ -12,15 +12,15 @@ use std::ffi::CString;
 use std::ffi::CStr;
 use std::ptr;
 
-pub struct MulticastDNS;
+pub struct ServiceDiscoveryManager;
 
-impl MulticastDNS {
-    pub fn new() -> MulticastDNS {
-        MulticastDNS
+impl ServiceDiscoveryManager {
+    pub fn new() -> ServiceDiscoveryManager {
+        ServiceDiscoveryManager
     }
 
     /// List all available service by type_name.
-    pub fn list(&self, service_type: &str) {
+    pub fn discover_services(&self, service_type: &str) {
         unsafe {
             let mut client_error_code: i32 = 0;
 
@@ -55,8 +55,8 @@ impl MulticastDNS {
                                                       avahi::AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                                       CString::new(service_type).unwrap().as_ptr(),
                                                       ptr::null_mut(),
-                                                      avahi::AvahiLookupFlags::AVAHI_LOOKUP_NO_TXT,
-                                                      *Box::new(CallbackHandler::browse_callback::<MulticastDNS>),
+                                                      avahi::AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
+                                                      *Box::new(CallbackHandler::browse_callback::<ServiceDiscoveryManager>),
                                                       mem::transmute(&client_reference));
 
             avahi::avahi_simple_poll_loop(simple_poll);
@@ -68,8 +68,8 @@ impl MulticastDNS {
     }
 }
 
-impl SafeHandler for MulticastDNS {
-    fn on_service_browsed(&self, service_description: BrowsedServiceDescription) {
+impl DiscoveryEventHandler for ServiceDiscoveryManager {
+    fn on_service_discovered(&self, service_description: BrowsedServiceDescription) {
         println!("Service browsed: {:?}", service_description);
     }
 
