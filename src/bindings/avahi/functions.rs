@@ -78,6 +78,13 @@ extern "C" {
                             -> *mut AvahiClient;
 
 
+    /// Free a client instance.
+    /// This will automatically free all associated browser, resolve and entry group objects.
+    /// All pointers to such objects become invalid!
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - Active `AvahiClient` instance.
     pub fn avahi_client_free(client: *mut AvahiClient);
 
 
@@ -108,6 +115,13 @@ extern "C" {
                                      callback: ServiceBrowserCallback,
                                      userdata: *mut c_void)
                                      -> *mut AvahiServiceBrowser;
+
+    /// Cleans up and frees an `AvahiServiceBrowser` object.
+    ///
+    /// # Arguments
+    ///
+    /// * `service_browser` - instance of `AvahiServiceBrowser`.
+    pub fn avahi_service_browser_free(service_browser: *mut AvahiServiceBrowser) -> c_int;
 
     /// Create a new service resolver object.
     ///
@@ -155,8 +169,6 @@ extern "C" {
                                       userdata: *mut c_void)
                                       -> *mut AvahiServiceResolver;
 
-    pub fn avahi_service_browser_free(b: *mut AvahiServiceBrowser) -> c_int;
-
     pub fn avahi_address_snprint(ret_s: *const c_char, length: size_t, a: *const AvahiAddress);
 
     /// Convert the string list object to a single character string, seperated by spaces
@@ -189,4 +201,58 @@ extern "C" {
     ///
     /// Human readable error string.
     pub fn avahi_strerror(error: c_int) -> *const c_char;
+
+    /// Create a new main loop object (will be performed in a separate thread).
+    ///
+    /// # Return value
+    ///
+    /// Main loop object - `AvahiThreadedPoll`.
+    pub fn avahi_threaded_poll_new() -> *mut AvahiThreadedPoll;
+
+    /// Return the abstracted poll API object for this main loop object.
+    /// The is will return the same pointer each time it is called.
+    ///
+    /// # Arguments
+    ///
+    /// * `threaded_poll` - Main loop object returned from `avahi_threaded_poll_new`.
+    ///
+    /// # Return value
+    ///
+    /// Abstracted poll API object - `AvahiPoll`.
+    pub fn avahi_threaded_poll_get(threaded_poll: *mut AvahiThreadedPoll) -> *mut AvahiPoll;
+
+    /// Start the event loop helper thread.
+    ///
+    /// After the thread has started you must make sure to access the event loop object
+    /// (`AvahiThreadedPoll`, `AvahiPoll` and all its associated objects) synchronized,
+    /// i.e. with proper locking. You may want to use `avahi_threaded_poll_lock` and
+    /// `avahi_threaded_poll_unlock` for this, which will lock the the entire event loop.
+    /// Please note that event loop callback functions are called from the event loop
+    /// helper thread with that lock held, i.e. `avahi_threaded_poll_lock` calls are not
+    /// required from event callbacks.
+    ///
+    /// # Arguments
+    ///
+    /// * `threaded_poll` - Main loop object returned from `avahi_threaded_poll_new`.
+    pub fn avahi_threaded_poll_start(threaded_poll: *mut AvahiThreadedPoll) -> c_int;
+
+    /// Request that the event loop quits and the associated thread stops.
+    ///
+    /// Call this from outside the helper thread if you want to shut it down.
+    ///
+    /// # Arguments
+    ///
+    /// * `threaded_poll` - Main loop object returned from `avahi_threaded_poll_new`.
+    pub fn avahi_threaded_poll_stop(threaded_poll: *mut AvahiThreadedPoll) -> c_int;
+
+    pub fn avahi_threaded_poll_quit(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
+
+    /// Free an event loop object.
+    ///
+    /// This will stop the associated event loop thread (if it is running).
+    ///
+    /// # Arguments
+    ///
+    /// * `threaded_poll` - Main loop object returned from `avahi_threaded_poll_new`.
+    pub fn avahi_threaded_poll_free(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
 }

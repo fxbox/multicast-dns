@@ -7,6 +7,9 @@ use libc::{c_void, c_int, c_char};
 pub struct AvahiSimplePoll;
 
 #[repr(C)]
+pub struct AvahiThreadedPoll;
+
+#[repr(C)]
 pub struct AvahiPoll;
 
 #[repr(C)]
