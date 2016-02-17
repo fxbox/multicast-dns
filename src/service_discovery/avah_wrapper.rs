@@ -1,14 +1,13 @@
-use std::mem;
-
+use std::cell::RefCell;
 use std::ffi::CStr;
 use std::ffi::CString;
+use std::mem;
 use std::ptr;
 
 use libc::{c_char, c_void, c_int, free};
 
 use bindings::avahi::*;
 use service_discovery::service_discovery_manager::ServiceDescription;
-use std::cell::RefCell;
 
 #[allow(unused_variables)]
 extern "C" fn client_callback(s: *mut AvahiClient,
@@ -28,7 +27,7 @@ extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
                               userdata: *mut c_void) {
     match event {
         AvahiBrowserEvent::AVAHI_BROWSER_NEW => unsafe {
-            let callback: &mut &mut FnMut(ServiceDescription) = mem::transmute(userdata);
+            let callback: &mut &mut Fn(ServiceDescription) = mem::transmute(userdata);
 
             let service_description = ServiceDescription {
                 address: &"",
@@ -98,8 +97,10 @@ extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
                 type_name: service_type.to_str().unwrap(),
             };
 
+            let callback: Box<Box<Fn(ServiceDescription)>> = unsafe {
+                Box::from_raw(userdata as *mut _)
+            };
 
-            let callback: &mut Box<FnMut(ServiceDescription)> = unsafe { mem::transmute(userdata) };
             callback(service_description);
         }
     }
@@ -123,12 +124,12 @@ impl AvahiWrapper {
     }
 
     pub fn start_browser<F>(&self, service_type: &str, mut callback: F)
-        where F: FnMut(ServiceDescription)
+        where F: Fn(ServiceDescription)
     {
         self.initialize_poll();
         self.initialize_client();
 
-        let mut callback: &mut FnMut(ServiceDescription) = &mut callback;
+        let mut callback: &mut Fn(ServiceDescription) = &mut callback;
 
         let avahi_service_browser = unsafe {
             avahi_service_browser_new(self.client.borrow().unwrap(),
@@ -147,9 +148,9 @@ impl AvahiWrapper {
     }
 
     pub fn resolve<F>(&self, service: ServiceDescription, callback: F)
-        where F: FnMut(ServiceDescription)
+        where F: Fn(ServiceDescription)
     {
-        let callback: Box<Box<FnMut(ServiceDescription)>> = Box::new(Box::new(callback));
+        let callback: Box<Box<Fn(ServiceDescription)>> = Box::new(Box::new(callback));
 
         let avahi_service_resolver = unsafe {
             avahi_service_resolver_new(self.client.borrow().unwrap(),
@@ -161,7 +162,7 @@ impl AvahiWrapper {
                                        AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                        AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                        *Box::new(resolve_callback),
-                                       Box::into_raw(callback) as *mut _)
+                                       Box::into_raw(callback) as *mut c_void)
         };
 
         *self.service_resolver.borrow_mut() = Some(avahi_service_resolver);
