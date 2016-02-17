@@ -6,6 +6,7 @@ pub struct ServiceDescription<'a> {
     pub interface: i32,
     pub name: &'a str,
     pub port: u16,
+    pub protocol: i32,
     pub type_name: &'a str,
     pub txt: &'a str,
 }
@@ -13,9 +14,11 @@ pub struct ServiceDescription<'a> {
 pub trait ServiceDiscoveryManager {
     fn new() -> Self;
 
-    // fn discover_services_sync(&self, service_type: &str);
+    fn discover_services_sync<F>(&self, service_type: &str, callback: F)
+        where F: FnMut(ServiceDescription);
     fn discover_services<F>(&self, service_type: &str, callback: F)
         where F: FnMut(ServiceDescription);
     fn stop_service_discovery(&self);
-    fn resolve_service(&self, service_description: ServiceDescription);
+    fn resolve_service<F>(&self, service_description: ServiceDescription, callback: F)
+        where F: FnMut(ServiceDescription);
 }

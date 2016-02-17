@@ -4,6 +4,7 @@ use libc::{c_void, c_int, c_char, size_t};
 
 #[link(name = "avahi-common")]
 #[link(name = "avahi-client")]
+#[link(name = "dbus-1")]
 #[allow(improper_ctypes)]
 extern "C" {
     /// Create a new main loop object.
@@ -246,6 +247,8 @@ extern "C" {
     pub fn avahi_threaded_poll_stop(threaded_poll: *mut AvahiThreadedPoll) -> c_int;
 
     pub fn avahi_threaded_poll_quit(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
+    
+    
 
     /// Free an event loop object.
     ///
@@ -255,4 +258,7 @@ extern "C" {
     ///
     /// * `threaded_poll` - Main loop object returned from `avahi_threaded_poll_new`.
     pub fn avahi_threaded_poll_free(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
+    
+    pub fn avahi_threaded_poll_lock(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
+    pub fn avahi_threaded_poll_unlock(threaded_poll: *mut AvahiThreadedPoll) -> c_void;	
 }

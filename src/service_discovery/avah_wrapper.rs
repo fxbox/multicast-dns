@@ -10,6 +10,10 @@ use bindings::avahi::*;
 use service_discovery::service_discovery_manager::ServiceDescription;
 use std::cell::RefCell;
 
+fn on_service_resolved(service_description: ServiceDescription) {
+    println!("Service resolved Inter");
+}
+
 #[allow(unused_variables)]
 extern "C" fn client_callback(s: *mut AvahiClient,
                               state: AvahiClientState,
@@ -37,19 +41,106 @@ extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
                 interface: interface,
                 name: CStr::from_ptr(name).to_str().unwrap(),
                 port: 0,
+                protocol: protocol,
                 txt: &"",
                 type_name: CStr::from_ptr(service_type).to_str().unwrap(),
             };
 
             callback(service_description);
+
         },
         _ => println!("{:?}", event),
+    }
+}
+
+#[allow(unused_variables)]
+extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
+                               interface: c_int,
+                               protocol: c_int,
+                               event: AvahiResolverEvent,
+                               name: *const c_char,
+                               service_type: *const c_char,
+                               domain: *const c_char,
+                               host_name: *const c_char,
+                               address: *const AvahiAddress,
+                               port: u16,
+                               txt: *mut AvahiStringList,
+                               flags: AvahiLookupResultFlags,
+                               userdata: *mut c_void) {
+    // let println!("Step 3 {:?}",);
+
+    //     let callback: &mut &mut FnMut(ServiceDescription) = unsafe { mem::transmute(userdata) };
+    //
+    //     callback(ServiceDescription {
+    //         address: &"",
+    //         domain: &"",
+    //         host_name: &"",
+    //         interface: 0,
+    //         name: &"",
+    //         port: 0,
+    //         protocol: 0,
+    //         txt: &"",
+    //         type_name: &"",
+    //     });
+
+    match event {
+        AvahiResolverEvent::AVAHI_RESOLVER_FAILURE => {
+            println!("Failed to resolve");
+        }
+
+        AvahiResolverEvent::AVAHI_RESOLVER_FOUND => {
+            let address_vector = Vec::with_capacity(AVAHI_ADDRESS_STR_MAX).as_ptr();
+
+            let (address, domain, host_name, name, service_type, txt) = unsafe {
+                avahi_address_snprint(address_vector, AVAHI_ADDRESS_STR_MAX, address);
+
+                let txt_pointer = avahi_string_list_to_string(txt);
+                let txt = CStr::from_ptr(txt_pointer).to_string_lossy().into_owned();
+                avahi_free(txt_pointer as *mut c_void);
+
+                (CStr::from_ptr(address_vector),
+                 CStr::from_ptr(domain),
+                 CStr::from_ptr(host_name),
+                 CStr::from_ptr(name),
+                 CStr::from_ptr(service_type),
+                 txt)
+            };
+
+            let service_description = ServiceDescription {
+                address: address.to_str().unwrap(),
+                domain: domain.to_str().unwrap(),
+                host_name: host_name.to_str().unwrap(),
+                interface: interface,
+                name: name.to_str().unwrap(),
+                port: port,
+                protocol: protocol,
+                txt: &txt,
+                type_name: service_type.to_str().unwrap(),
+            };
+
+            let callback: &mut &mut FnMut(ServiceDescription) = unsafe {
+                mem::transmute::<*mut c_void, &mut &mut FnMut(ServiceDescription)>(userdata)
+            };
+            
+            if userdata.is_null() {
+                println!("Nullllll");
+            } else {
+                println!("Not nullllll");
+            }
+
+            println!("Reference inside {:p}", userdata as *const _);
+
+            // println!("Call {:?}", service_description);
+
+            callback(service_description);
+        }
     }
 }
 
 pub struct AvahiWrapper {
     client: RefCell<Option<*mut AvahiClient>>,
     poll: RefCell<Option<*mut AvahiThreadedPoll>>,
+    sync_poll: RefCell<Option<*mut AvahiSimplePoll>>,
     service_browser: RefCell<Option<*mut AvahiServiceBrowser>>,
     service_resolver: RefCell<Option<*mut AvahiServiceResolver>>,
 }
@@ -59,6 +150,7 @@ impl AvahiWrapper {
         AvahiWrapper {
             client: RefCell::new(None),
             poll: RefCell::new(None),
+            sync_poll: RefCell::new(None),
             service_browser: RefCell::new(None),
             service_resolver: RefCell::new(None),
         }
@@ -88,22 +180,71 @@ impl AvahiWrapper {
         self.start_polling();
     }
 
-    // pub fn resolve(&self, service: ServiceDescription, mut callback: F)
-    //     where F: FnMut(ServiceDescription)
-    // {
-    //     let avahi_service_resolver = unsafe {
-    //         avahi_service_resolver_new(self.client.borrow().unwrap(),
-    //                                interface,
-    //                                protocol,
-    //                                name,
-    //                                service_type,
-    //                                domain,
-    //                                AvahiProtocol::AVAHI_PROTO_UNSPEC,
-    //                                AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
-    //                                *Box::new(resolve_callback),
-    //                                userdata)
-    //                                }
-    // }
+    pub fn start_browser_sync<F>(&self, service_type: &str, mut callback: F)
+        where F: FnMut(ServiceDescription)
+    {
+        self.initialize_poll_sync();
+        self.initialize_client_sync();
+
+        let mut callback: &mut FnMut(ServiceDescription) = &mut callback;
+
+        let avahi_service_browser = unsafe {
+            avahi_service_browser_new(self.client.borrow().unwrap(),
+                                      AvahiIfIndex::AVAHI_IF_UNSPEC,
+                                      AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                                      CString::new(service_type).unwrap().as_ptr(),
+                                      ptr::null_mut(),
+                                      AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
+                                      *Box::new(browse_callback),
+                                      mem::transmute(&mut callback))
+        };
+
+        *self.service_browser.borrow_mut() = Some(avahi_service_browser);
+
+        self.start_polling_sync();
+    }
+
+    pub fn resolve<F>(&self, service: ServiceDescription, mut callback: F)
+        where F: FnMut(ServiceDescription)
+    {
+        let mut cl = |sd: ServiceDescription| {
+            println!("It works");
+            //avahi_threaded_poll_unlock();
+            callback(sd);
+        };
+        let mut callback: &mut FnMut(ServiceDescription) = &mut cl;
+
+        //         let fake3: &mut &mut FnMut() = unsafe {
+        //             mem::transmute::<*mut c_void, &mut &mut FnMut()>(fake2)
+        //         };
+        //
+        //         fake3();
+        //         return;
+
+
+        // let mut callback: &mut FnMut(ServiceDescription) = &mut on_service_resolved;//callback;
+
+        // let mut callback: &mut FnMut() = &mut fake;
+        
+       // unsafe {avahi_threaded_poll_lock(self.poll.borrow().unwrap())};
+
+        let userdata = unsafe { mem::transmute(&mut callback) };
+
+        let avahi_service_resolver = unsafe {
+            avahi_service_resolver_new(self.client.borrow().unwrap(),
+                                       service.interface,
+                                       service.protocol,
+                                       CString::new(service.name).unwrap().as_ptr(),
+                                       CString::new(service.type_name).unwrap().as_ptr(),
+                                       CString::new(service.domain).unwrap().as_ptr(),
+                                       AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
+                                       *Box::new(resolve_callback),
+                                       userdata)
+        };
+
+        *self.service_resolver.borrow_mut() = Some(avahi_service_resolver);
+    }
 
     pub fn stop_browser(&self) {
         let mut service_browser = self.service_browser.borrow_mut();
@@ -172,10 +313,43 @@ impl AvahiWrapper {
         *self.client.borrow_mut() = Some(avahi_client);
     }
 
+    fn initialize_client_sync(&self) {
+        let mut client_error_code: i32 = 0;
+        let poll = self.sync_poll.borrow().unwrap();
+
+        let avahi_client = unsafe {
+            avahi_client_new(avahi_simple_poll_get(poll),
+                             AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
+                             *Box::new(client_callback),
+                             ptr::null_mut(),
+                             &mut client_error_code)
+        };
+
+        // Check that we've created client successfully, otherwise try to resolve error
+        // into human-readable string.
+        if avahi_client.is_null() {
+            let error_string = unsafe {
+                free(avahi_client as *mut c_void);
+                CStr::from_ptr(avahi_strerror(client_error_code))
+            };
+
+            panic!("Failed to create avahi client: {}",
+                   error_string.to_str().unwrap());
+        }
+
+        *self.client.borrow_mut() = Some(avahi_client);
+    }
+
     fn initialize_poll(&self) {
         let avahi_poll = unsafe { avahi_threaded_poll_new() };
 
         *self.poll.borrow_mut() = Some(avahi_poll);
+    }
+
+    fn initialize_poll_sync(&self) {
+        let avahi_poll = unsafe { avahi_simple_poll_new() };
+
+        *self.sync_poll.borrow_mut() = Some(avahi_poll);
     }
 
     fn start_polling(&self) {
@@ -184,6 +358,14 @@ impl AvahiWrapper {
         let result_code = unsafe { avahi_threaded_poll_start(poll) };
         if result_code == -1 {
             panic!("Avahi threaded poll could not be started!");
+        }
+    }
+
+    fn start_polling_sync(&self) {
+        let poll = self.sync_poll.borrow().unwrap();
+
+        unsafe {
+            avahi_simple_poll_loop(poll);
         }
     }
 }
