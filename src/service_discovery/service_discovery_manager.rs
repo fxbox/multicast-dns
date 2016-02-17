@@ -20,5 +20,5 @@ pub trait ServiceDiscoveryManager {
         where F: FnMut(ServiceDescription);
     fn stop_service_discovery(&self);
     fn resolve_service<F>(&self, service_description: ServiceDescription, callback: F)
-        where F: FnMut(ServiceDescription);
+        where F: FnMut(ServiceDescription), F: 'static;
 }

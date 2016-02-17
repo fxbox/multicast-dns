@@ -10,10 +10,6 @@ use bindings::avahi::*;
 use service_discovery::service_discovery_manager::ServiceDescription;
 use std::cell::RefCell;
 
-fn on_service_resolved(service_description: ServiceDescription) {
-    println!("Service resolved Inter");
-}
-
 #[allow(unused_variables)]
 extern "C" fn client_callback(s: *mut AvahiClient,
                               state: AvahiClientState,
@@ -67,22 +63,6 @@ extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
                                txt: *mut AvahiStringList,
                                flags: AvahiLookupResultFlags,
                                userdata: *mut c_void) {
-    // let println!("Step 3 {:?}",);
-
-    //     let callback: &mut &mut FnMut(ServiceDescription) = unsafe { mem::transmute(userdata) };
-    //
-    //     callback(ServiceDescription {
-    //         address: &"",
-    //         domain: &"",
-    //         host_name: &"",
-    //         interface: 0,
-    //         name: &"",
-    //         port: 0,
-    //         protocol: 0,
-    //         txt: &"",
-    //         type_name: &"",
-    //     });
-
     match event {
         AvahiResolverEvent::AVAHI_RESOLVER_FAILURE => {
             println!("Failed to resolve");
@@ -118,20 +98,8 @@ extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
                 type_name: service_type.to_str().unwrap(),
             };
 
-            let callback: &mut &mut FnMut(ServiceDescription) = unsafe {
-                mem::transmute::<*mut c_void, &mut &mut FnMut(ServiceDescription)>(userdata)
-            };
-            
-            if userdata.is_null() {
-                println!("Nullllll");
-            } else {
-                println!("Not nullllll");
-            }
 
-            println!("Reference inside {:p}", userdata as *const _);
-
-            // println!("Call {:?}", service_description);
-
+            let callback: &mut Box<FnMut(ServiceDescription)> = unsafe { mem::transmute(userdata) };
             callback(service_description);
         }
     }
@@ -204,31 +172,11 @@ impl AvahiWrapper {
         self.start_polling_sync();
     }
 
-    pub fn resolve<F>(&self, service: ServiceDescription, mut callback: F)
-        where F: FnMut(ServiceDescription)
+    pub fn resolve<F>(&self, service: ServiceDescription, callback: F)
+        where F: FnMut(ServiceDescription),
+              F: 'static
     {
-        let mut cl = |sd: ServiceDescription| {
-            println!("It works");
-            //avahi_threaded_poll_unlock();
-            callback(sd);
-        };
-        let mut callback: &mut FnMut(ServiceDescription) = &mut cl;
-
-        //         let fake3: &mut &mut FnMut() = unsafe {
-        //             mem::transmute::<*mut c_void, &mut &mut FnMut()>(fake2)
-        //         };
-        //
-        //         fake3();
-        //         return;
-
-
-        // let mut callback: &mut FnMut(ServiceDescription) = &mut on_service_resolved;//callback;
-
-        // let mut callback: &mut FnMut() = &mut fake;
-        
-       // unsafe {avahi_threaded_poll_lock(self.poll.borrow().unwrap())};
-
-        let userdata = unsafe { mem::transmute(&mut callback) };
+        let callback: Box<Box<FnMut(ServiceDescription)>> = Box::new(Box::new(callback));
 
         let avahi_service_resolver = unsafe {
             avahi_service_resolver_new(self.client.borrow().unwrap(),
@@ -240,7 +188,7 @@ impl AvahiWrapper {
                                        AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                        AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                        *Box::new(resolve_callback),
-                                       userdata)
+                                       Box::into_raw(callback) as *mut _)
         };
 
         *self.service_resolver.borrow_mut() = Some(avahi_service_resolver);
@@ -268,7 +216,6 @@ impl AvahiWrapper {
         let mut poll = self.poll.borrow_mut();
         if poll.is_some() {
             unsafe {
-                // avahi_threaded_poll_quit(poll.unwrap());
                 avahi_threaded_poll_free(poll.unwrap());
             }
 
