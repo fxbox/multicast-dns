@@ -16,12 +16,6 @@ impl ServiceDiscoveryManager for AvahiServiceDiscoveryManager {
         self.wrapper.start_browser(service_type, callback);
     }
 
-    fn discover_services_sync<F>(&self, service_type: &str, callback: F)
-        where F: FnMut(ServiceDescription)
-    {
-        self.wrapper.start_browser_sync(service_type, callback);
-    }
-
     fn resolve_service<F>(&self, service_description: ServiceDescription, callback: F)
         where F: FnMut(ServiceDescription),
               F: 'static

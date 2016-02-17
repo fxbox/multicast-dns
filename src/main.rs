@@ -22,20 +22,18 @@ Options:
 ",
         flag_type: Option<String>);
 
-fn on_service_resolved(service_description: ServiceDescription) {
-    println!("Service resolved: {:?}", service_description);
-}
-
 fn main() {
     let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
     let service_discovery_manager: AvahiServiceDiscoveryManager = ServiceDiscoveryManager::new();
 
     let service_type = args.flag_type.unwrap_or(DEFAULT_SERVICE_TYPE.to_owned());
 
-    service_discovery_manager.discover_services_sync(&service_type, |service: ServiceDescription| {
+    service_discovery_manager.discover_services(&service_type, |service: ServiceDescription| {
         println!("Service discovered: {:?}", service);
 
-        service_discovery_manager.resolve_service(service, on_service_resolved);
+        service_discovery_manager.resolve_service(service, |service: ServiceDescription| {
+            println!("Service resolved: {:?}", service);
+        });
     });
 
     loop {

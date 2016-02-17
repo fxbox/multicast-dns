@@ -14,8 +14,6 @@ pub struct ServiceDescription<'a> {
 pub trait ServiceDiscoveryManager {
     fn new() -> Self;
 
-    fn discover_services_sync<F>(&self, service_type: &str, callback: F)
-        where F: FnMut(ServiceDescription);
     fn discover_services<F>(&self, service_type: &str, callback: F)
         where F: FnMut(ServiceDescription);
     fn stop_service_discovery(&self);
