@@ -147,8 +147,7 @@ impl AvahiWrapper {
     }
 
     pub fn resolve<F>(&self, service: ServiceDescription, callback: F)
-        where F: FnMut(ServiceDescription),
-              F: 'static
+        where F: FnMut(ServiceDescription)
     {
         let callback: Box<Box<FnMut(ServiceDescription)>> = Box::new(Box::new(callback));
 

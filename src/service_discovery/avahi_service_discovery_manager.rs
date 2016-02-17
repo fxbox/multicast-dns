@@ -17,8 +17,7 @@ impl ServiceDiscoveryManager for AvahiServiceDiscoveryManager {
     }
 
     fn resolve_service<F>(&self, service_description: ServiceDescription, callback: F)
-        where F: FnMut(ServiceDescription),
-              F: 'static
+        where F: FnMut(ServiceDescription)
     {
         self.wrapper.resolve(service_description, callback);
     }
