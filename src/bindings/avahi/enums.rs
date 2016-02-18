@@ -11,6 +11,7 @@ pub enum AvahiClientFlags {
 
 #[repr(C)]
 #[allow(dead_code)]
+#[derive(Debug)]
 pub enum AvahiClientState {
     AVAHI_CLIENT_S_REGISTERING,
     AVAHI_CLIENT_S_RUNNING,
@@ -32,6 +33,7 @@ pub enum AvahiLookupFlags {
 
 #[repr(C)]
 #[allow(dead_code)]
+#[derive(Debug)]
 pub enum AvahiLookupResultFlags {
     AVAHI_LOOKUP_RESULT_CACHED,
     AVAHI_LOOKUP_RESULT_WIDE_AREA,
@@ -76,6 +78,7 @@ pub enum AvahiIfIndex {
 
 #[repr(C)]
 #[allow(dead_code)]
+#[derive(Debug)]
 pub enum AvahiResolverEvent {
     AVAHI_RESOLVER_FOUND,
     AVAHI_RESOLVER_FAILURE,

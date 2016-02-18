@@ -170,6 +170,8 @@ extern "C" {
                                       userdata: *mut c_void)
                                       -> *mut AvahiServiceResolver;
 
+    pub fn avahi_service_resolver_free(resolver: *mut AvahiServiceResolver) -> c_int;
+
     pub fn avahi_address_snprint(ret_s: *const c_char, length: size_t, a: *const AvahiAddress);
 
     /// Convert the string list object to a single character string, seperated by spaces

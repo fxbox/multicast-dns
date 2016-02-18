@@ -10,6 +10,7 @@ mod service_discovery;
 
 use service_discovery::service_discovery_manager::ServiceDescription;
 use service_discovery::service_discovery_manager::DiscoveryListener;
+use service_discovery::service_discovery_manager::ResolveListener;
 use service_discovery::ServiceDiscoveryManager;
 use service_discovery::AvahiServiceDiscoveryManager;
 
@@ -23,29 +24,53 @@ Options:
 ",
         flag_type: Option<String>);
 
+
+struct TestDiscoveryListener<'a> {
+    manager: &'a AvahiServiceDiscoveryManager,
+}
+impl<'a> DiscoveryListener for TestDiscoveryListener<'a> {
+    fn on_service_discovered(&self, service: ServiceDescription) {
+        println!("Service discovered: {:?}", service);
+
+        self.manager.resolve_service(service, TestResolveListener);
+    }
+
+    fn on_all_discovered(&self) {
+        println!("All discovered");
+    }
+}
+
+struct TestResolveListener;
+impl ResolveListener for TestResolveListener {
+    fn on_service_resolved(&self, service: ServiceDescription) {
+        println!("Service resolved: {:?}", service);
+    }
+}
+
 fn main() {
     let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
-    let service_discovery_manager: AvahiServiceDiscoveryManager = ServiceDiscoveryManager::new();
+    let discovery_manager: AvahiServiceDiscoveryManager = ServiceDiscoveryManager::new();
 
     let service_type = args.flag_type.unwrap_or(DEFAULT_SERVICE_TYPE.to_owned());
 
-    let mut first_service: Option<ServiceDescription> = None;
+    // let mut first_service: Option<ServiceDescription> = None;
 
-    let listener = DiscoveryListener {
-        on_service_found: &|service: ServiceDescription| {
-            println!("Service discovered: {:?}", service);
-        },
+    //     let listener = DiscoveryListener {
+    //         on_service_found: &|service: ServiceDescription| {
+    //             println!("Service discovered: {:?}", service);
+    //         },
+    //
+    //         on_all_discovered: &|| {
+    //             println!("All discovered");
+    //         },
+    //     };
 
-        on_all_discovered: &|| {
-            println!("All discovered");
-        },
-    };
-
-    service_discovery_manager.discover_services(&service_type, listener);
+    discovery_manager.discover_services(&service_type,
+                                        TestDiscoveryListener { manager: &discovery_manager });
 
     loop {
-        if first_service.is_some() {
-            break;
-        }
+        // if first_service.is_some() {
+        //     break;
+        // }
     }
 }
