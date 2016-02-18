@@ -10,10 +10,8 @@ impl ServiceDiscoveryManager for AvahiServiceDiscoveryManager {
         AvahiServiceDiscoveryManager { wrapper: AvahiWrapper::new() }
     }
 
-    fn discover_services<F>(&self, service_type: &str, callback: F)
-        where F: Fn(ServiceDescription)
-    {
-        self.wrapper.start_browser(service_type, callback);
+    fn discover_services(&self, service_type: &str, listener: DiscoveryListener) {
+        self.wrapper.start_browser(service_type, listener);
     }
 
     fn resolve_service<F>(&self, service_description: ServiceDescription, callback: F)

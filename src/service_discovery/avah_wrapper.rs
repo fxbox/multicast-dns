@@ -8,6 +8,7 @@ use libc::{c_char, c_void, c_int, free};
 
 use bindings::avahi::*;
 use service_discovery::service_discovery_manager::ServiceDescription;
+use service_discovery::service_discovery_manager::DiscoveryListener;
 
 #[allow(unused_variables)]
 extern "C" fn client_callback(s: *mut AvahiClient,
@@ -25,10 +26,10 @@ extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
                               domain: *const c_char,
                               flags: AvahiLookupResultFlags,
                               userdata: *mut c_void) {
+    let listener: &mut DiscoveryListener = unsafe { mem::transmute(userdata) };
+
     match event {
         AvahiBrowserEvent::AVAHI_BROWSER_NEW => unsafe {
-            let callback: &mut &mut Fn(ServiceDescription) = mem::transmute(userdata);
-
             let service_description = ServiceDescription {
                 address: &"",
                 domain: CStr::from_ptr(domain).to_str().unwrap(),
@@ -41,9 +42,11 @@ extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
                 type_name: CStr::from_ptr(service_type).to_str().unwrap(),
             };
 
-            callback(service_description);
-
+            (*listener.on_service_found)(service_description);
         },
+        AvahiBrowserEvent::AVAHI_BROWSER_ALL_FOR_NOW => {
+            (*listener.on_all_discovered)();
+        }
         _ => println!("{:?}", event),
     }
 }
@@ -123,13 +126,9 @@ impl AvahiWrapper {
         }
     }
 
-    pub fn start_browser<F>(&self, service_type: &str, mut callback: F)
-        where F: Fn(ServiceDescription)
-    {
+    pub fn start_browser(&self, service_type: &str, mut listener: DiscoveryListener) {
         self.initialize_poll();
         self.initialize_client();
-
-        let mut callback: &mut Fn(ServiceDescription) = &mut callback;
 
         let avahi_service_browser = unsafe {
             avahi_service_browser_new(self.client.borrow().unwrap(),
@@ -139,7 +138,7 @@ impl AvahiWrapper {
                                       ptr::null_mut(),
                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                       *Box::new(browse_callback),
-                                      mem::transmute(&mut callback))
+                                      mem::transmute(&mut listener))
         };
 
         *self.service_browser.borrow_mut() = Some(avahi_service_browser);

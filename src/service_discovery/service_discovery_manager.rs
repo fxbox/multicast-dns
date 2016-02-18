@@ -11,10 +11,15 @@ pub struct ServiceDescription<'a> {
     pub txt: &'a str,
 }
 
+pub struct DiscoveryListener<'a> {
+    pub on_service_found: &'a Fn(ServiceDescription),
+    pub on_all_discovered: &'a Fn(),
+}
+
 pub trait ServiceDiscoveryManager {
     fn new() -> Self;
 
-    fn discover_services<F>(&self, service_type: &str, callback: F) where F: Fn(ServiceDescription);
+    fn discover_services(&self, service_type: &str, listener: DiscoveryListener);
     fn stop_service_discovery(&self);
     fn resolve_service<F>(&self, service_description: ServiceDescription, callback: F)
         where F: Fn(ServiceDescription);

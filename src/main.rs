@@ -9,6 +9,7 @@ mod bindings;
 mod service_discovery;
 
 use service_discovery::service_discovery_manager::ServiceDescription;
+use service_discovery::service_discovery_manager::DiscoveryListener;
 use service_discovery::ServiceDiscoveryManager;
 use service_discovery::AvahiServiceDiscoveryManager;
 
@@ -28,14 +29,23 @@ fn main() {
 
     let service_type = args.flag_type.unwrap_or(DEFAULT_SERVICE_TYPE.to_owned());
 
-    service_discovery_manager.discover_services(&service_type, |service: ServiceDescription| {
-        println!("Service discovered: {:?}", service);
+    let mut first_service: Option<ServiceDescription> = None;
 
-        service_discovery_manager.resolve_service(service, |service: ServiceDescription| {
-            println!("Service resolved: {:?}", service);
-        });
-    });
+    let listener = DiscoveryListener {
+        on_service_found: &|service: ServiceDescription| {
+            println!("Service discovered: {:?}", service);
+        },
+
+        on_all_discovered: &|| {
+            println!("All discovered");
+        },
+    };
+
+    service_discovery_manager.discover_services(&service_type, listener);
 
     loop {
+        if first_service.is_some() {
+            break;
+        }
     }
 }
