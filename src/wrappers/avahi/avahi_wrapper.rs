@@ -78,7 +78,7 @@ impl Wrapper for AvahiWrapper {
         }
     }
 
-    fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
+    fn start_browser(&self, service_type: String, listeners: DiscoveryListeners) {
         self.initialize_poll();
         self.initialize_client();
 
@@ -103,15 +103,15 @@ impl Wrapper for AvahiWrapper {
             match a.event {
                 AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
                     let service = ServiceDescription {
-                        address: &"",
-                        domain: &a.domain.unwrap(),
-                        host_name: &"",
+                        address: None,
+                        domain: a.domain,
+                        host_name: None,
                         interface: a.interface,
-                        name: &a.name.unwrap(),
+                        name: a.name,
                         port: 0,
                         protocol: a.protocol,
-                        txt: &"",
-                        type_name: service_type,
+                        txt: None,
+                        type_name: a.service_type,
                     };
 
                     if listeners.on_service_discovered.is_some() {
@@ -137,9 +137,9 @@ impl Wrapper for AvahiWrapper {
             avahi_service_resolver_new(self.client.borrow().unwrap(),
                                        service.interface,
                                        service.protocol,
-                                       CString::new(service.name).unwrap().as_ptr(),
-                                       CString::new(service.type_name).unwrap().as_ptr(),
-                                       CString::new(service.domain).unwrap().as_ptr(),
+                                       CString::new(service.name.unwrap()).unwrap().as_ptr(),
+                                       CString::new(service.type_name.unwrap()).unwrap().as_ptr(),
+                                       CString::new(service.domain.unwrap()).unwrap().as_ptr(),
                                        AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                        AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                        *Box::new(AvahiCallbacks::resolve_callback),
@@ -149,15 +149,15 @@ impl Wrapper for AvahiWrapper {
         let raw_service = rx.recv().unwrap();
 
         let service = ServiceDescription {
-            address: &raw_service.address.unwrap(),
-            domain: &raw_service.domain.unwrap(),
-            host_name: &raw_service.host_name.unwrap(),
+            address: raw_service.address,
+            domain: raw_service.domain,
+            host_name: raw_service.host_name,
             interface: raw_service.interface,
-            name: &raw_service.name.unwrap(),
+            name: raw_service.name,
             port: raw_service.port,
             protocol: raw_service.protocol,
-            txt: &raw_service.txt.unwrap(),
-            type_name: &raw_service.service_type.unwrap(),
+            txt: raw_service.txt,
+            type_name: raw_service.service_type,
         };
 
         if listeners.on_service_resolved.is_some() {

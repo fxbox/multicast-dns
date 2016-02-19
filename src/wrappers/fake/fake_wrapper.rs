@@ -8,18 +8,18 @@ impl Wrapper for FakeWrapper {
         FakeWrapper
     }
 
-    fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
+    fn start_browser(&self, service_type: String, listeners: DiscoveryListeners) {
         if listeners.on_service_discovered.is_some() {
             (*listeners.on_service_discovered.unwrap())(ServiceDescription {
-                address: &"",
-                domain: &"local",
-                host_name: &"",
+                address: None,
+                domain: Some(format!("local")),
+                host_name: None,
                 interface: 1,
-                name: &"fake",
+                name: Some(format!("fake")),
                 port: 0,
                 protocol: 3,
-                txt: &"",
-                type_name: service_type,
+                txt: None,
+                type_name: Some(service_type),
             });
         }
 
@@ -30,14 +30,14 @@ impl Wrapper for FakeWrapper {
 
     fn resolve(&self, service: ServiceDescription, listeners: ResolveListeners) {
         let service = ServiceDescription {
-            address: &"192.168.1.1",
+            address: Some(format!("192.168.1.1")),
             domain: service.domain,
-            host_name: &"fake.local",
+            host_name: Some(format!("fake.local")),
             interface: service.interface,
             name: service.name,
             port: 80,
             protocol: service.protocol,
-            txt: &"\"model=Xserve\"",
+            txt: Some(format!("\"model=Xserve\"")),
             type_name: service.type_name,
         };
 

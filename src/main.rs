@@ -53,8 +53,8 @@ fn main() {
         on_all_discovered: Some(&on_all_discovered),
     };
 
-    discovery_manager.discover_services(&service_type, discovery_listeners);
-    
+    discovery_manager.discover_services(service_type, discovery_listeners);
+
     loop {}
 
     // discovery_manager.stop_service_discovery();

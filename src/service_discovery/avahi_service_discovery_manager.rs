@@ -15,7 +15,7 @@ impl ServiceDiscoveryManager for AvahiServiceDiscoveryManager {
         AvahiServiceDiscoveryManager { wrapper: Box::new(APIWrapper::new()) }
     }
 
-    fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners) {
+    fn discover_services(&self, service_type: String, listeners: DiscoveryListeners) {
         self.wrapper.start_browser(service_type, listeners);
     }
 

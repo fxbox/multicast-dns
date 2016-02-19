@@ -1,14 +1,14 @@
 #[derive(Debug)]
-pub struct ServiceDescription<'a> {
-    pub address: &'a str,
-    pub domain: &'a str,
-    pub host_name: &'a str,
+pub struct ServiceDescription {
+    pub address: Option<String>,
+    pub domain: Option<String>,
+    pub host_name: Option<String>,
     pub interface: i32,
-    pub name: &'a str,
+    pub name: Option<String>,
     pub port: u16,
     pub protocol: i32,
-    pub type_name: &'a str,
-    pub txt: &'a str,
+    pub type_name: Option<String>,
+    pub txt: Option<String>,
 }
 
 pub struct DiscoveryListeners<'a> {
@@ -32,7 +32,7 @@ pub trait ResolveListener {
 pub trait ServiceDiscoveryManager {
     fn new() -> Self;
 
-    fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners);
+    fn discover_services(&self, service_type: String, listeners: DiscoveryListeners);
     fn stop_service_discovery(&self);
     fn resolve_service(&self, service: ServiceDescription, listeners: ResolveListeners);
 }
