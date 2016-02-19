@@ -2,10 +2,11 @@ use std::ffi::CStr;
 use libc::{c_char, c_void};
 
 use bindings::avahi::*;
+
 pub struct AvahiUtils;
 
 impl AvahiUtils {
-    pub fn parse_c_string(c_string: *const c_char) -> Option<String> {
+    pub fn to_owned_string(c_string: *const c_char) -> Option<String> {
         if c_string.is_null() {
             None
         } else {
@@ -20,7 +21,7 @@ impl AvahiUtils {
             let address_vector = Vec::with_capacity(AVAHI_ADDRESS_STR_MAX).as_ptr();
             unsafe { avahi_address_snprint(address_vector, AVAHI_ADDRESS_STR_MAX, address) };
 
-            AvahiUtils::parse_c_string(address_vector)
+            AvahiUtils::to_owned_string(address_vector)
         }
     }
 
@@ -30,7 +31,7 @@ impl AvahiUtils {
         } else {
             unsafe {
                 let txt_pointer = avahi_string_list_to_string(txt);
-                let txt = AvahiUtils::parse_c_string(txt_pointer);
+                let txt = AvahiUtils::to_owned_string(txt_pointer);
                 avahi_free(txt_pointer as *mut c_void);
 
                 txt

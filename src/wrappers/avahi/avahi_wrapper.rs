@@ -1,114 +1,15 @@
 use std::cell::RefCell;
-use std::ffi::CStr;
 use std::ffi::CString;
 use std::mem;
 use std::ptr;
-use std::sync::mpsc::channel;
-use std::sync::mpsc::Sender;
-use libc::{c_char, c_void, c_int, free};
+use std::sync::mpsc;
 
 use bindings::avahi::*;
-use wrappers::wrapper::Wrapper;
 use service_discovery::service_discovery_manager::*;
+
+use wrappers::wrapper::Wrapper;
 use wrappers::avahi::avahi_utils::AvahiUtils;
-
-
-#[derive(Debug)]
-struct BrowseCallbackParameters {
-    event: AvahiBrowserEvent,
-    interface: i32,
-    protocol: i32,
-    name: Option<String>,
-    service_type: Option<String>,
-    domain: Option<String>,
-    flags: AvahiLookupResultFlags,
-}
-
-#[derive(Debug)]
-struct ResolveCallbackParameters {
-    event: AvahiResolverEvent,
-    address: Option<String>,
-    interface: i32,
-    port: u16,
-    protocol: i32,
-    name: Option<String>,
-    service_type: Option<String>,
-    domain: Option<String>,
-    host_name: Option<String>,
-    txt: Option<String>,
-    flags: AvahiLookupResultFlags,
-}
-
-#[allow(unused_variables)]
-extern "C" fn client_callback(s: *mut AvahiClient,
-                              state: AvahiClientState,
-                              userdata: *mut c_void) {
-    println!("Client state changed: {:?}", state);
-}
-
-#[allow(unused_variables)]
-extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
-                              interface: c_int,
-                              protocol: c_int,
-                              event: AvahiBrowserEvent,
-                              name: *const c_char,
-                              service_type: *const c_char,
-                              domain: *const c_char,
-                              flags: AvahiLookupResultFlags,
-                              userdata: *mut c_void) {
-
-    let sender = unsafe {
-        mem::transmute::<*mut c_void, &Sender<BrowseCallbackParameters>>(userdata)
-    };
-
-    let parameters = BrowseCallbackParameters {
-        event: event,
-        interface: interface,
-        protocol: protocol,
-        name: AvahiUtils::parse_c_string(name),
-        service_type: AvahiUtils::parse_c_string(service_type),
-        domain: AvahiUtils::parse_c_string(domain),
-        flags: flags,
-    };
-
-    sender.send(parameters).unwrap();
-}
-
-#[allow(unused_variables)]
-extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
-                               interface: c_int,
-                               protocol: c_int,
-                               event: AvahiResolverEvent,
-                               name: *const c_char,
-                               service_type: *const c_char,
-                               domain: *const c_char,
-                               host_name: *const c_char,
-                               address: *const AvahiAddress,
-                               port: u16,
-                               txt: *mut AvahiStringList,
-                               flags: AvahiLookupResultFlags,
-                               userdata: *mut c_void) {
-
-    let sender = unsafe {
-        mem::transmute::<*mut c_void, &Sender<ResolveCallbackParameters>>(userdata)
-    };
-
-    let parameters = ResolveCallbackParameters {
-        event: event,
-        address: AvahiUtils::parse_address(address),
-        interface: interface,
-        protocol: protocol,
-        port: port,
-        host_name: AvahiUtils::parse_c_string(host_name),
-        name: AvahiUtils::parse_c_string(name),
-        service_type: AvahiUtils::parse_c_string(service_type),
-        domain: AvahiUtils::parse_c_string(domain),
-        txt: AvahiUtils::parse_txt(txt),
-        flags: flags,
-    };
-
-    sender.send(parameters).unwrap();
-}
+use wrappers::avahi::avahi_callbacks::*;
 
 pub struct AvahiWrapper {
     client: RefCell<Option<*mut AvahiClient>>,
@@ -134,7 +35,7 @@ impl AvahiWrapper {
         let avahi_client = unsafe {
             avahi_client_new(avahi_threaded_poll_get(poll),
                              AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
-                             *Box::new(client_callback),
+                             *Box::new(AvahiCallbacks::client_callback),
                              ptr::null_mut(),
                              &mut client_error_code)
         };
@@ -142,13 +43,11 @@ impl AvahiWrapper {
         // Check that we've created client successfully, otherwise try to resolve error
         // into human-readable string.
         if avahi_client.is_null() {
-            let error_string = unsafe {
-                free(avahi_client as *mut c_void);
-                CStr::from_ptr(avahi_strerror(client_error_code))
-            };
+            let error_string = AvahiUtils::to_owned_string(unsafe {
+                avahi_strerror(client_error_code)
+            });
 
-            panic!("Failed to create avahi client: {}",
-                   error_string.to_str().unwrap());
+            panic!("Failed to create avahi client: {}", error_string.unwrap());
         }
 
         *self.client.borrow_mut() = Some(avahi_client);
@@ -183,11 +82,7 @@ impl Wrapper for AvahiWrapper {
         self.initialize_poll();
         self.initialize_client();
 
-        let (tx, rx) = channel::<BrowseCallbackParameters>();
-
-        let userdata = unsafe {
-            mem::transmute::<&Sender<BrowseCallbackParameters>, *mut c_void>(&tx)
-        };
+        let (tx, rx) = mpsc::channel::<BrowseCallbackParameters>();
 
         let avahi_service_browser = unsafe {
             avahi_service_browser_new(self.client.borrow().unwrap(),
@@ -196,8 +91,8 @@ impl Wrapper for AvahiWrapper {
                                       CString::new(service_type).unwrap().as_ptr(),
                                       ptr::null_mut(),
                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
-                                      *Box::new(browse_callback),
-                                      userdata)
+                                      *Box::new(AvahiCallbacks::browse_callback),
+                                      mem::transmute(&tx))
         };
 
         *self.service_browser.borrow_mut() = Some(avahi_service_browser);
@@ -236,11 +131,7 @@ impl Wrapper for AvahiWrapper {
     }
 
     fn resolve(&self, service: ServiceDescription, listeners: ResolveListeners) {
-        let (tx, rx) = channel::<ResolveCallbackParameters>();
-
-        let userdata = unsafe {
-            mem::transmute::<&Sender<ResolveCallbackParameters>, *mut c_void>(&tx)
-        };
+        let (tx, rx) = mpsc::channel::<ResolveCallbackParameters>();
 
         let avahi_service_resolver = unsafe {
             avahi_service_resolver_new(self.client.borrow().unwrap(),
@@ -251,8 +142,8 @@ impl Wrapper for AvahiWrapper {
                                        CString::new(service.domain).unwrap().as_ptr(),
                                        AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                        AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
-                                       *Box::new(resolve_callback),
-                                       userdata)
+                                       *Box::new(AvahiCallbacks::resolve_callback),
+                                       mem::transmute(&tx))
         };
 
         let raw_service = rx.recv().unwrap();

@@ -54,4 +54,8 @@ fn main() {
     };
 
     discovery_manager.discover_services(&service_type, discovery_listeners);
+    
+    loop {}
+
+    // discovery_manager.stop_service_discovery();
 }
