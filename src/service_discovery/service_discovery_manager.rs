@@ -11,6 +11,15 @@ pub struct ServiceDescription<'a> {
     pub txt: &'a str,
 }
 
+pub struct DiscoveryListeners<'a> {
+    pub on_service_discovered: Option<&'a Fn(ServiceDescription)>,
+    pub on_all_discovered: Option<&'a Fn()>,
+}
+
+pub struct ResolveListeners<'a> {
+    pub on_service_resolved: Option<&'a Fn(ServiceDescription)>,
+}
+
 pub trait DiscoveryListener {
     fn on_service_discovered(&self, service: ServiceDescription);
     fn on_all_discovered(&self);
@@ -23,7 +32,7 @@ pub trait ResolveListener {
 pub trait ServiceDiscoveryManager {
     fn new() -> Self;
 
-    fn discover_services<T: DiscoveryListener>(&self, service_type: &str, listener: T);
+    fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners);
     fn stop_service_discovery(&self);
-    fn resolve_service<T: ResolveListener>(&self, service: ServiceDescription, listener: T);
+    fn resolve_service(&self, service: ServiceDescription, listeners: ResolveListeners);
 }

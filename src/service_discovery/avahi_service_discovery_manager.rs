@@ -1,24 +1,29 @@
 use service_discovery::service_discovery_manager::*;
-use service_discovery::avahi_wrapper::*;
+use wrappers::wrapper::Wrapper;
+
+#[cfg(target_os = "linux")]
+use wrappers::avahi::AvahiWrapper as APIWrapper;
+#[cfg(not(target_os = "linux"))]
+use wrappers::fake::FakeWrapper as APIWrapper;
 
 pub struct AvahiServiceDiscoveryManager {
-    wrapper: AvahiWrapper,
+    wrapper: Box<Wrapper>,
 }
 
 impl ServiceDiscoveryManager for AvahiServiceDiscoveryManager {
     fn new() -> AvahiServiceDiscoveryManager {
-        AvahiServiceDiscoveryManager { wrapper: AvahiWrapper::new() }
+        AvahiServiceDiscoveryManager { wrapper: Box::new(APIWrapper::new()) }
     }
 
-    fn discover_services<T: DiscoveryListener>(&self, service_type: &str, listener: T) {
-        self.wrapper.start_browser(service_type, listener);
+    fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners) {
+        self.wrapper.start_browser(service_type, listeners);
     }
 
-    fn resolve_service<T: ResolveListener>(&self, service: ServiceDescription, listener: T) {
-        self.wrapper.resolve(service, listener);
+    fn resolve_service(&self, service: ServiceDescription, listeners: ResolveListeners) {
+        self.wrapper.resolve(service, listeners);
     }
 
     fn stop_service_discovery(&self) {
-        panic!("Not");//self.wrapper.stop_browser();
+        self.wrapper.stop_browser();
     }
 }

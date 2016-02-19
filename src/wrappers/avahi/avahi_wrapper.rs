@@ -8,42 +8,10 @@ use std::sync::mpsc::Sender;
 use libc::{c_char, c_void, c_int, free};
 
 use bindings::avahi::*;
-use service_discovery::service_discovery_manager::ServiceDescription;
-use service_discovery::service_discovery_manager::DiscoveryListener;
-use service_discovery::service_discovery_manager::ResolveListener;
+use wrappers::wrapper::Wrapper;
+use service_discovery::service_discovery_manager::*;
+use wrappers::avahi::avahi_utils::AvahiUtils;
 
-fn parse_c_string(c_string: *const c_char) -> Option<String> {
-    if c_string.is_null() {
-        None
-    } else {
-        Some(unsafe { CStr::from_ptr(c_string) }.to_string_lossy().into_owned())
-    }
-}
-
-fn parse_address(address: *const AvahiAddress) -> Option<String> {
-    if address.is_null() {
-        None
-    } else {
-        let address_vector = Vec::with_capacity(AVAHI_ADDRESS_STR_MAX).as_ptr();
-        unsafe { avahi_address_snprint(address_vector, AVAHI_ADDRESS_STR_MAX, address) };
-
-        parse_c_string(address_vector)
-    }
-}
-
-fn parse_txt(txt: *mut AvahiStringList) -> Option<String> {
-    if txt.is_null() {
-        None
-    } else {
-        unsafe {
-            let txt_pointer = avahi_string_list_to_string(txt);
-            let txt = parse_c_string(txt_pointer);
-            avahi_free(txt_pointer as *mut c_void);
-
-            txt
-        }
-    }
-}
 
 #[derive(Debug)]
 struct BrowseCallbackParameters {
@@ -97,9 +65,9 @@ extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
         event: event,
         interface: interface,
         protocol: protocol,
-        name: parse_c_string(name),
-        service_type: parse_c_string(service_type),
-        domain: parse_c_string(domain),
+        name: AvahiUtils::parse_c_string(name),
+        service_type: AvahiUtils::parse_c_string(service_type),
+        domain: AvahiUtils::parse_c_string(domain),
         flags: flags,
     };
 
@@ -127,15 +95,15 @@ extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
 
     let parameters = ResolveCallbackParameters {
         event: event,
-        address: parse_address(address),
+        address: AvahiUtils::parse_address(address),
         interface: interface,
         protocol: protocol,
         port: port,
-        host_name: parse_c_string(host_name),
-        name: parse_c_string(name),
-        service_type: parse_c_string(service_type),
-        domain: parse_c_string(domain),
-        txt: parse_txt(txt),
+        host_name: AvahiUtils::parse_c_string(host_name),
+        name: AvahiUtils::parse_c_string(name),
+        service_type: AvahiUtils::parse_c_string(service_type),
+        domain: AvahiUtils::parse_c_string(domain),
+        txt: AvahiUtils::parse_txt(txt),
         flags: flags,
     };
 
@@ -149,114 +117,6 @@ pub struct AvahiWrapper {
 }
 
 impl AvahiWrapper {
-    pub fn new() -> AvahiWrapper {
-        AvahiWrapper {
-            client: RefCell::new(None),
-            poll: RefCell::new(None),
-            service_browser: RefCell::new(None),
-        }
-    }
-
-    pub fn start_browser<T: DiscoveryListener>(&self, service_type: &str, listener: T) {
-        self.initialize_poll();
-        self.initialize_client();
-
-        let (tx, rx) = channel::<BrowseCallbackParameters>();
-
-        let userdata = unsafe {
-            mem::transmute::<&Sender<BrowseCallbackParameters>, *mut c_void>(&tx)
-        };
-
-        let avahi_service_browser = unsafe {
-            avahi_service_browser_new(self.client.borrow().unwrap(),
-                                      AvahiIfIndex::AVAHI_IF_UNSPEC,
-                                      AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                      CString::new(service_type).unwrap().as_ptr(),
-                                      ptr::null_mut(),
-                                      AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
-                                      *Box::new(browse_callback),
-                                      userdata)
-        };
-
-        *self.service_browser.borrow_mut() = Some(avahi_service_browser);
-
-        self.start_polling();
-
-        for a in rx.iter() {
-            match a.event {
-                AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
-                    let service = ServiceDescription {
-                        address: &"",
-                        domain: &a.domain.unwrap(),
-                        host_name: &"",
-                        interface: a.interface,
-                        name: &a.name.unwrap(),
-                        port: 0,
-                        protocol: a.protocol,
-                        txt: &"",
-                        type_name: service_type,
-                    };
-
-                    listener.on_service_discovered(service);
-
-                    // println!("Service: {:?}", service);
-
-                    // self.resolve(service);
-                }
-                AvahiBrowserEvent::AVAHI_BROWSER_ALL_FOR_NOW => {
-                    listener.on_all_discovered();
-                    break;
-                }
-                _ => println!("Default {:?}", a.event),
-            }
-        }
-    }
-
-    pub fn resolve<T: ResolveListener>(&self, service: ServiceDescription, listener: T) {
-        let (tx, rx) = channel::<ResolveCallbackParameters>();
-
-        let userdata = unsafe {
-            mem::transmute::<&Sender<ResolveCallbackParameters>, *mut c_void>(&tx)
-        };
-
-        let avahi_service_resolver = unsafe {
-            avahi_service_resolver_new(self.client.borrow().unwrap(),
-                                       service.interface,
-                                       service.protocol,
-                                       CString::new(service.name).unwrap().as_ptr(),
-                                       CString::new(service.type_name).unwrap().as_ptr(),
-                                       CString::new(service.domain).unwrap().as_ptr(),
-                                       AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
-                                       *Box::new(resolve_callback),
-                                       userdata)
-        };
-
-        // *self.service_resolver.borrow_mut() = Some(avahi_service_resolver);
-
-        let raw_service = rx.recv().unwrap();
-
-        let service = ServiceDescription {
-            address: &raw_service.address.unwrap(),
-            domain: &raw_service.domain.unwrap(),
-            host_name: &raw_service.host_name.unwrap(),
-            interface: raw_service.interface,
-            name: &raw_service.name.unwrap(),
-            port: raw_service.port,
-            protocol: raw_service.protocol,
-            txt: &raw_service.txt.unwrap(),
-            type_name: &raw_service.service_type.unwrap(),
-        };
-
-        listener.on_service_resolved(service);
-
-        // println!("Resolved {:?}", rx.recv().unwrap());
-
-        unsafe {
-            avahi_service_resolver_free(avahi_service_resolver);
-        }
-    }
-
     /// Creates `AvahiClient` instance for the provided `AvahiPoll` object.
     ///
     /// # Arguments
@@ -308,6 +168,142 @@ impl AvahiWrapper {
             panic!("Avahi threaded poll could not be started!");
         }
     }
+}
 
-    fn on_service_discovered(&self, parameters: BrowseCallbackParameters) {}
+impl Wrapper for AvahiWrapper {
+    fn new() -> AvahiWrapper {
+        AvahiWrapper {
+            client: RefCell::new(None),
+            poll: RefCell::new(None),
+            service_browser: RefCell::new(None),
+        }
+    }
+
+    fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
+        self.initialize_poll();
+        self.initialize_client();
+
+        let (tx, rx) = channel::<BrowseCallbackParameters>();
+
+        let userdata = unsafe {
+            mem::transmute::<&Sender<BrowseCallbackParameters>, *mut c_void>(&tx)
+        };
+
+        let avahi_service_browser = unsafe {
+            avahi_service_browser_new(self.client.borrow().unwrap(),
+                                      AvahiIfIndex::AVAHI_IF_UNSPEC,
+                                      AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                                      CString::new(service_type).unwrap().as_ptr(),
+                                      ptr::null_mut(),
+                                      AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
+                                      *Box::new(browse_callback),
+                                      userdata)
+        };
+
+        *self.service_browser.borrow_mut() = Some(avahi_service_browser);
+
+        self.start_polling();
+
+        for a in rx.iter() {
+            match a.event {
+                AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
+                    let service = ServiceDescription {
+                        address: &"",
+                        domain: &a.domain.unwrap(),
+                        host_name: &"",
+                        interface: a.interface,
+                        name: &a.name.unwrap(),
+                        port: 0,
+                        protocol: a.protocol,
+                        txt: &"",
+                        type_name: service_type,
+                    };
+
+                    if listeners.on_service_discovered.is_some() {
+                        (*listeners.on_service_discovered.unwrap())(service);
+                    }
+                }
+                AvahiBrowserEvent::AVAHI_BROWSER_ALL_FOR_NOW => {
+                    if listeners.on_all_discovered.is_some() {
+                        (*listeners.on_all_discovered.unwrap())();
+                    }
+
+                    break;
+                }
+                _ => println!("Default {:?}", a.event),
+            }
+        }
+    }
+
+    fn resolve(&self, service: ServiceDescription, listeners: ResolveListeners) {
+        let (tx, rx) = channel::<ResolveCallbackParameters>();
+
+        let userdata = unsafe {
+            mem::transmute::<&Sender<ResolveCallbackParameters>, *mut c_void>(&tx)
+        };
+
+        let avahi_service_resolver = unsafe {
+            avahi_service_resolver_new(self.client.borrow().unwrap(),
+                                       service.interface,
+                                       service.protocol,
+                                       CString::new(service.name).unwrap().as_ptr(),
+                                       CString::new(service.type_name).unwrap().as_ptr(),
+                                       CString::new(service.domain).unwrap().as_ptr(),
+                                       AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
+                                       *Box::new(resolve_callback),
+                                       userdata)
+        };
+
+        let raw_service = rx.recv().unwrap();
+
+        let service = ServiceDescription {
+            address: &raw_service.address.unwrap(),
+            domain: &raw_service.domain.unwrap(),
+            host_name: &raw_service.host_name.unwrap(),
+            interface: raw_service.interface,
+            name: &raw_service.name.unwrap(),
+            port: raw_service.port,
+            protocol: raw_service.protocol,
+            txt: &raw_service.txt.unwrap(),
+            type_name: &raw_service.service_type.unwrap(),
+        };
+
+        if listeners.on_service_resolved.is_some() {
+            (*listeners.on_service_resolved.unwrap())(service);
+        }
+
+        unsafe {
+            avahi_service_resolver_free(avahi_service_resolver);
+        }
+    }
+
+    fn stop_browser(&self) {
+        let mut service_browser = self.service_browser.borrow_mut();
+        if service_browser.is_some() {
+            unsafe {
+                avahi_service_browser_free(service_browser.unwrap());
+            };
+
+            *service_browser = None
+        }
+
+        let mut client = self.client.borrow_mut();
+        if client.is_some() {
+            unsafe {
+                avahi_client_free(client.unwrap());
+            }
+
+            *client = None;
+        }
+
+        let mut poll = self.poll.borrow_mut();
+        if poll.is_some() {
+            unsafe {
+                avahi_threaded_poll_free(poll.unwrap());
+            }
+
+            *poll = None;
+        }
+    }
 }
