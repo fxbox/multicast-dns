@@ -4,6 +4,7 @@ mod adapters;
 #[cfg(target_os = "linux")]
 mod bindings;
 pub mod discovery;
+pub mod host;
 
 use adapters::Adapter;
 #[cfg(target_os = "linux")]
@@ -12,15 +13,21 @@ use adapters::avahi::AvahiAdapter as PlatformAdapter;
 use adapters::fake::FakeAdapter as PlatformAdapter;
 
 use discovery::DiscoveryManager;
+use host::HostManager;
 
 pub struct MulticastDNS {
     pub discovery: Box<DiscoveryManager>,
+    pub host: Box<HostManager>,
 }
 
 impl MulticastDNS {
     pub fn new() -> MulticastDNS {
-        let adapter: Box<Adapter> = Box::new(PlatformAdapter::new());
+        let discovery_adapter: Box<Adapter> = Box::new(PlatformAdapter::new());
+        let host_adapter: Box<Adapter> = Box::new(PlatformAdapter::new());
 
-        MulticastDNS { discovery: Box::new(DiscoveryManager::new(adapter)) }
+        MulticastDNS {
+            discovery: Box::new(DiscoveryManager::new(discovery_adapter)),
+            host: Box::new(HostManager::new(host_adapter)),
+        }
     }
 }

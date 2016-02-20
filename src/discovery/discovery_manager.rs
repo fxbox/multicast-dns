@@ -42,20 +42,4 @@ impl DiscoveryManager {
     pub fn stop_service_discovery(&self) {
         self.adapter.stop_browser();
     }
-
-    pub fn get_host_name(&self) -> Option<String> {
-        self.adapter.get_host_name()
-    }
-
-    pub fn set_host_name(&self, host_name: &str) {
-        self.adapter.set_host_name(host_name);
-    }
-
-    pub fn is_valid_host_name(&self, host_name: &str) -> bool {
-        self.adapter.is_valid_host_name(host_name)
-    }
-
-    pub fn get_alternative_host_name(&self, host_name: &str) -> String {
-        self.adapter.get_alternative_host_name(host_name)
-    }
 }
