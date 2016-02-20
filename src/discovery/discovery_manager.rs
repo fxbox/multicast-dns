@@ -1,3 +1,5 @@
+use adapters::Adapter;
+
 #[derive(Debug)]
 pub struct ServiceInfo {
     pub address: Option<String>,
@@ -20,15 +22,40 @@ pub struct ResolveListeners<'a> {
     pub on_service_resolved: Option<&'a Fn(ServiceInfo)>,
 }
 
-pub trait DiscoveryManager {
-    fn new() -> Self where Self: Sized;
+pub struct DiscoveryManager {
+    adapter: Box<Adapter>,
+}
 
-    fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners);
-    fn stop_service_discovery(&self);
-    fn resolve_service(&self, service: ServiceInfo, listeners: ResolveListeners);
+impl DiscoveryManager {
+    pub fn new(adapter: Box<Adapter>) -> DiscoveryManager {
+        DiscoveryManager { adapter: adapter }
+    }
 
-    fn get_host_name(&self) -> Option<String>;
-    fn set_host_name(&self, host_name: &str);
-    fn is_valid_host_name(&self, host_name: &str) -> bool;
-    fn get_alternative_host_name(&self, host_name: &str) -> String;
+    pub fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners) {
+        self.adapter.start_browser(service_type, listeners);
+    }
+
+    pub fn resolve_service(&self, service: ServiceInfo, listeners: ResolveListeners) {
+        self.adapter.resolve(service, listeners);
+    }
+
+    pub fn stop_service_discovery(&self) {
+        self.adapter.stop_browser();
+    }
+
+    pub fn get_host_name(&self) -> Option<String> {
+        self.adapter.get_host_name()
+    }
+
+    pub fn set_host_name(&self, host_name: &str) {
+        self.adapter.set_host_name(host_name);
+    }
+
+    pub fn is_valid_host_name(&self, host_name: &str) -> bool {
+        self.adapter.is_valid_host_name(host_name)
+    }
+
+    pub fn get_alternative_host_name(&self, host_name: &str) -> String {
+        self.adapter.get_alternative_host_name(host_name)
+    }
 }

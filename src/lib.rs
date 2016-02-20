@@ -1,12 +1,26 @@
 extern crate libc;
 
-mod api;
+mod adapters;
 #[cfg(target_os = "linux")]
 mod bindings;
-mod discovery;
+pub mod discovery;
+
+use adapters::Adapter;
+#[cfg(target_os = "linux")]
+use adapters::avahi::AvahiAdapter as PlatformAdapter;
+#[cfg(not(target_os = "linux"))]
+use adapters::fake::FakeAdapter as PlatformAdapter;
 
 use discovery::DiscoveryManager;
 
 pub struct MulticastDNS {
-    discovery: Box<DiscoveryManager>,
+    pub discovery: Box<DiscoveryManager>,
+}
+
+impl MulticastDNS {
+    pub fn new() -> MulticastDNS {
+        let adapter: Box<Adapter> = Box::new(PlatformAdapter::new());
+
+        MulticastDNS { discovery: Box::new(DiscoveryManager::new(adapter)) }
+    }
 }

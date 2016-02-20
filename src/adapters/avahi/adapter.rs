@@ -9,17 +9,17 @@ use libc::c_void;
 use bindings::avahi::*;
 use discovery::discovery_manager::*;
 
-use api::api::API;
-use api::avahi::avahi_utils::AvahiUtils;
-use api::avahi::avahi_callbacks::*;
+use adapters::Adapter;
+use adapters::avahi::utils::*;
+use adapters::avahi::callbacks::*;
 
-pub struct AvahiAPI {
+pub struct AvahiAdapter {
     client: RefCell<Option<*mut AvahiClient>>,
     poll: RefCell<Option<*mut AvahiThreadedPoll>>,
     service_browser: RefCell<Option<*mut AvahiServiceBrowser>>,
 }
 
-impl AvahiAPI {
+impl AvahiAdapter {
     /// Creates `AvahiClient` instance for the provided `AvahiPoll` object.
     ///
     /// # Arguments
@@ -83,9 +83,9 @@ impl AvahiAPI {
     }
 }
 
-impl API for AvahiAPI {
-    fn new() -> AvahiAPI {
-        AvahiAPI {
+impl Adapter for AvahiAdapter {
+    fn new() -> AvahiAdapter {
+        AvahiAdapter {
             client: RefCell::new(None),
             poll: RefCell::new(None),
             service_browser: RefCell::new(None),

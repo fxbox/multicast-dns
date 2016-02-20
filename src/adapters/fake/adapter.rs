@@ -1,11 +1,11 @@
-use api::api::API;
+use adapters::Adapter;
 use discovery::discovery_manager::*;
 
-pub struct FakeAPI;
+pub struct FakeAdapter;
 
-impl API for FakeAPI {
-    fn new() -> FakeAPI {
-        FakeAPI
+impl Adapter for FakeAdapter {
+    fn new() -> FakeAdapter {
+        FakeAdapter
     }
 
     fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {

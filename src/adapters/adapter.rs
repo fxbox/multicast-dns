@@ -1,6 +1,6 @@
 use discovery::discovery_manager::*;
 
-pub trait API {
+pub trait Adapter {
     fn new() -> Self where Self: Sized;
 
     fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners);

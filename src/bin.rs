@@ -1,18 +1,12 @@
 #![feature(custom_derive, plugin)]
 #![plugin(docopt_macros)]
 
-extern crate libc;
 extern crate docopt;
 extern crate rustc_serialize;
+extern crate multicastdnslib;
 
-#[cfg(target_os = "linux")]
-mod bindings;
-
-mod api;
-mod discovery;
-
-use discovery::discovery_manager::*;
-use discovery::AvahiDiscoveryManager;
+use multicastdnslib::MulticastDNS;
+use multicastdnslib::discovery::discovery_manager::*;
 
 const DEFAULT_SERVICE_TYPE: &'static str = "_device-info._tcp";
 
@@ -28,7 +22,7 @@ fn main() {
     let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
     let service_type = args.flag_type.unwrap_or(DEFAULT_SERVICE_TYPE.to_owned());
 
-    let discovery_manager: AvahiDiscoveryManager = DiscoveryManager::new();
+    let multicast_dns = MulticastDNS::new();
 
     let on_service_resolved = |service: ServiceInfo| {
         println!("Service resolved: {:?}", service);
@@ -41,7 +35,7 @@ fn main() {
             on_service_resolved: Some(&on_service_resolved),
         };
 
-        discovery_manager.resolve_service(service, resolve_listeners);
+        multicast_dns.discovery.resolve_service(service, resolve_listeners);
     };
 
     let on_all_discovered = || {
@@ -53,35 +47,35 @@ fn main() {
         on_all_discovered: Some(&on_all_discovered),
     };
 
-    discovery_manager.discover_services(&service_type, discovery_listeners);
+    multicast_dns.discovery.discover_services(&service_type, discovery_listeners);
 
-    println!("Host name: {:?}", discovery_manager.get_host_name());
+    println!("Host name: {:?}", multicast_dns.discovery.get_host_name());
 
     println!("Is valid host name: {:?} - {:?}",
              format!("foxbox"),
-             discovery_manager.is_valid_host_name(&format!("foxbox")));
+             multicast_dns.discovery.is_valid_host_name(&format!("foxbox")));
 
     println!("Is valid host name: {:?} - {:?}",
              format!("foxbox.org"),
-             discovery_manager.is_valid_host_name(&format!("foxbox.org")));
+             multicast_dns.discovery.is_valid_host_name(&format!("foxbox.org")));
 
     println!("Alternative to {:?} is {:?}",
              format!("foxbox"),
-             discovery_manager.get_alternative_host_name(&format!("foxbox")));
+             multicast_dns.discovery.get_alternative_host_name(&format!("foxbox")));
 
     println!("Alternative to {:?} is {:?}",
              format!("foxbox-2"),
-             discovery_manager.get_alternative_host_name(&format!("foxbox-2")));
+             multicast_dns.discovery.get_alternative_host_name(&format!("foxbox-2")));
 
     println!("Alternative to {:?} is {:?}",
              format!("foxbox-3"),
-             discovery_manager.get_alternative_host_name(&format!("foxbox-3")));
+             multicast_dns.discovery.get_alternative_host_name(&format!("foxbox-3")));
 
-    discovery_manager.stop_service_discovery();
+    multicast_dns.discovery.stop_service_discovery();
 
     println!("Going to loop");
 
-    discovery_manager.set_host_name(&format!("foxloc"));
+    multicast_dns.discovery.set_host_name(&format!("foxloc"));
 
     loop {}
     // discovery_manager.stop_service_discovery();
