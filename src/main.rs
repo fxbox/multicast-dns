@@ -53,9 +53,36 @@ fn main() {
         on_all_discovered: Some(&on_all_discovered),
     };
 
-    discovery_manager.discover_services(service_type, discovery_listeners);
+    discovery_manager.discover_services(&service_type, discovery_listeners);
+
+    println!("Host name: {:?}", discovery_manager.get_host_name());
+
+    println!("Is valid host name: {:?} - {:?}",
+             format!("foxbox"),
+             discovery_manager.is_valid_host_name(&format!("foxbox")));
+
+    println!("Is valid host name: {:?} - {:?}",
+             format!("foxbox.org"),
+             discovery_manager.is_valid_host_name(&format!("foxbox.org")));
+
+    println!("Alternative to {:?} is {:?}",
+             format!("foxbox"),
+             discovery_manager.get_alternative_host_name(&format!("foxbox")));
+
+    println!("Alternative to {:?} is {:?}",
+             format!("foxbox-2"),
+             discovery_manager.get_alternative_host_name(&format!("foxbox-2")));
+
+    println!("Alternative to {:?} is {:?}",
+             format!("foxbox-3"),
+             discovery_manager.get_alternative_host_name(&format!("foxbox-3")));
+
+    discovery_manager.stop_service_discovery();
+
+    println!("Going to loop");
+
+    discovery_manager.set_host_name(&format!("foxloc"));
 
     loop {}
-
     // discovery_manager.stop_service_discovery();
 }

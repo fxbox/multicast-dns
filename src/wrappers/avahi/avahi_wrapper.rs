@@ -4,6 +4,8 @@ use std::mem;
 use std::ptr;
 use std::sync::mpsc;
 
+use libc::c_void;
+
 use bindings::avahi::*;
 use service_discovery::service_discovery_manager::*;
 
@@ -29,6 +31,14 @@ impl AvahiWrapper {
     /// Initialized `AvahiClient` instance, if there was an error while creating
     /// client, this method will `panic!`.
     fn initialize_client(&self) {
+        let mut client = self.client.borrow_mut();
+
+        if client.is_some() {
+            return;
+        }
+
+        self.initialize_poll();
+
         let mut client_error_code: i32 = 0;
         let poll = self.poll.borrow().unwrap();
 
@@ -50,13 +60,17 @@ impl AvahiWrapper {
             panic!("Failed to create avahi client: {}", error_string.unwrap());
         }
 
-        *self.client.borrow_mut() = Some(avahi_client);
+        *client = Some(avahi_client);
     }
 
     fn initialize_poll(&self) {
-        let avahi_poll = unsafe { avahi_threaded_poll_new() };
+        let mut poll = self.poll.borrow_mut();
 
-        *self.poll.borrow_mut() = Some(avahi_poll);
+        if poll.is_some() {
+            return;
+        }
+
+        *poll = Some(unsafe { avahi_threaded_poll_new() });
     }
 
     fn start_polling(&self) {
@@ -78,8 +92,7 @@ impl Wrapper for AvahiWrapper {
         }
     }
 
-    fn start_browser(&self, service_type: String, listeners: DiscoveryListeners) {
-        self.initialize_poll();
+    fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
         self.initialize_client();
 
         let (tx, rx) = mpsc::channel::<BrowseCallbackParameters>();
@@ -88,11 +101,11 @@ impl Wrapper for AvahiWrapper {
             avahi_service_browser_new(self.client.borrow().unwrap(),
                                       AvahiIfIndex::AVAHI_IF_UNSPEC,
                                       AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                      CString::new(service_type).unwrap().as_ptr(),
+                                      AvahiUtils::string_to_ptr(service_type),
                                       ptr::null_mut(),
                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                       *Box::new(AvahiCallbacks::browse_callback),
-                                      mem::transmute(&tx))
+                                      mem::transmute(&tx.clone()))
         };
 
         *self.service_browser.borrow_mut() = Some(avahi_service_browser);
@@ -170,23 +183,31 @@ impl Wrapper for AvahiWrapper {
     }
 
     fn stop_browser(&self) {
-        let mut service_browser = self.service_browser.borrow_mut();
-        if service_browser.is_some() {
-            unsafe {
-                avahi_service_browser_free(service_browser.unwrap());
-            };
-
-            *service_browser = None
-        }
-
         let mut client = self.client.borrow_mut();
+        let mut service_browser = self.service_browser.borrow_mut();
         if client.is_some() {
+            // This will remove service browser as well as resolver.
             unsafe {
                 avahi_client_free(client.unwrap());
             }
 
             *client = None;
+            *service_browser = None
         }
+
+        println!("Removed client");
+
+
+        //         let mut service_browser = self.service_browser.borrow_mut();
+        //         if service_browser.is_some() {
+        //             unsafe {
+        //                 avahi_service_browser_free(service_browser.unwrap());
+        //             };
+        //
+        //
+        //         }
+        //
+        //         println!("Removed service browser");
 
         let mut poll = self.poll.borrow_mut();
         if poll.is_some() {
@@ -196,5 +217,59 @@ impl Wrapper for AvahiWrapper {
 
             *poll = None;
         }
+
+        println!("Removed poll");
+    }
+
+    fn get_host_name(&self) -> Option<String> {
+        self.initialize_client();
+
+        let client = self.client.borrow().unwrap();
+
+        let host_name_ptr = unsafe { avahi_client_get_host_name(client) };
+
+        AvahiUtils::to_owned_string(host_name_ptr)
+    }
+
+    fn set_host_name(&self, host_name: &str) {
+        self.initialize_client();
+
+        if host_name == self.get_host_name().unwrap() {
+            return;
+        }
+
+        let client = self.client.borrow().unwrap();
+
+        let result_code = unsafe {
+            avahi_client_set_host_name(client, AvahiUtils::string_to_ptr(host_name))
+        };
+
+        if result_code != 0 {
+            let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
+
+            panic!("Failed set host name: {}", error_string.unwrap());
+        }
+    }
+
+    fn is_valid_host_name(&self, host_name: &str) -> bool {
+        let host_name_ptr = AvahiUtils::string_to_ptr(host_name);
+
+        let is_valid = unsafe { avahi_is_valid_host_name(host_name_ptr) };
+
+        is_valid == 1
+    }
+
+    fn get_alternative_host_name(&self, host_name: &str) -> String {
+        let original_host_name_ptr = AvahiUtils::string_to_ptr(host_name);
+
+        let alternative_host_name_ptr = unsafe {
+            avahi_alternative_host_name(original_host_name_ptr)
+        };
+
+        let alternative_host_name = AvahiUtils::to_owned_string(alternative_host_name_ptr);
+
+        unsafe { avahi_free(alternative_host_name_ptr as *mut c_void) };
+
+        alternative_host_name.unwrap()
     }
 }

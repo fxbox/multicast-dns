@@ -1,4 +1,5 @@
 use std::ffi::CStr;
+use std::ffi::CString;
 use libc::{c_char, c_void};
 
 use bindings::avahi::*;
@@ -6,6 +7,10 @@ use bindings::avahi::*;
 pub struct AvahiUtils;
 
 impl AvahiUtils {
+    pub fn string_to_ptr(r_string: &str) -> *const c_char {
+        CString::new(r_string).unwrap().as_ptr()
+    }
+
     pub fn to_owned_string(c_string: *const c_char) -> Option<String> {
         if c_string.is_null() {
             None

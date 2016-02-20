@@ -88,6 +88,13 @@ extern "C" {
     /// * `client` - Active `AvahiClient` instance.
     pub fn avahi_client_free(client: *mut AvahiClient);
 
+    pub fn avahi_client_get_host_name(client: *mut AvahiClient) -> *const c_char;
+
+    pub fn avahi_client_set_host_name(client: *mut AvahiClient, name: *const c_char) -> c_int;
+
+    pub fn avahi_is_valid_host_name(host_name: *const c_char) -> c_int;
+
+    pub fn avahi_alternative_host_name(host_name: *const c_char) -> *const c_char;
 
     /// Browse for domains on the local network.
     ///
