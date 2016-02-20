@@ -5,7 +5,7 @@ use std::sync::mpsc;
 
 use bindings::avahi::*;
 
-use wrappers::avahi::avahi_utils::AvahiUtils;
+use api::avahi::avahi_utils::AvahiUtils;
 
 pub struct AvahiCallbacks;
 

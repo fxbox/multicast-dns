@@ -8,11 +8,11 @@ extern crate rustc_serialize;
 #[cfg(target_os = "linux")]
 mod bindings;
 
-mod wrappers;
-mod service_discovery;
+mod api;
+mod discovery;
 
-use service_discovery::service_discovery_manager::*;
-use service_discovery::AvahiServiceDiscoveryManager;
+use discovery::discovery_manager::*;
+use discovery::AvahiDiscoveryManager;
 
 const DEFAULT_SERVICE_TYPE: &'static str = "_device-info._tcp";
 
@@ -28,13 +28,13 @@ fn main() {
     let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
     let service_type = args.flag_type.unwrap_or(DEFAULT_SERVICE_TYPE.to_owned());
 
-    let discovery_manager: AvahiServiceDiscoveryManager = ServiceDiscoveryManager::new();
+    let discovery_manager: AvahiDiscoveryManager = DiscoveryManager::new();
 
-    let on_service_resolved = |service: ServiceDescription| {
+    let on_service_resolved = |service: ServiceInfo| {
         println!("Service resolved: {:?}", service);
     };
 
-    let on_service_discovered = |service: ServiceDescription| {
+    let on_service_discovered = |service: ServiceInfo| {
         println!("Service discovered: {:?}", service);
 
         let resolve_listeners = ResolveListeners {

@@ -7,19 +7,19 @@ use std::sync::mpsc;
 use libc::c_void;
 
 use bindings::avahi::*;
-use service_discovery::service_discovery_manager::*;
+use discovery::discovery_manager::*;
 
-use wrappers::wrapper::Wrapper;
-use wrappers::avahi::avahi_utils::AvahiUtils;
-use wrappers::avahi::avahi_callbacks::*;
+use api::api::API;
+use api::avahi::avahi_utils::AvahiUtils;
+use api::avahi::avahi_callbacks::*;
 
-pub struct AvahiWrapper {
+pub struct AvahiAPI {
     client: RefCell<Option<*mut AvahiClient>>,
     poll: RefCell<Option<*mut AvahiThreadedPoll>>,
     service_browser: RefCell<Option<*mut AvahiServiceBrowser>>,
 }
 
-impl AvahiWrapper {
+impl AvahiAPI {
     /// Creates `AvahiClient` instance for the provided `AvahiPoll` object.
     ///
     /// # Arguments
@@ -83,9 +83,9 @@ impl AvahiWrapper {
     }
 }
 
-impl Wrapper for AvahiWrapper {
-    fn new() -> AvahiWrapper {
-        AvahiWrapper {
+impl API for AvahiAPI {
+    fn new() -> AvahiAPI {
+        AvahiAPI {
             client: RefCell::new(None),
             poll: RefCell::new(None),
             service_browser: RefCell::new(None),
@@ -115,7 +115,7 @@ impl Wrapper for AvahiWrapper {
         for a in rx.iter() {
             match a.event {
                 AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
-                    let service = ServiceDescription {
+                    let service = ServiceInfo {
                         address: None,
                         domain: a.domain,
                         host_name: None,
@@ -143,7 +143,7 @@ impl Wrapper for AvahiWrapper {
         }
     }
 
-    fn resolve(&self, service: ServiceDescription, listeners: ResolveListeners) {
+    fn resolve(&self, service: ServiceInfo, listeners: ResolveListeners) {
         let (tx, rx) = mpsc::channel::<ResolveCallbackParameters>();
 
         let avahi_service_resolver = unsafe {
@@ -161,7 +161,7 @@ impl Wrapper for AvahiWrapper {
 
         let raw_service = rx.recv().unwrap();
 
-        let service = ServiceDescription {
+        let service = ServiceInfo {
             address: raw_service.address,
             domain: raw_service.domain,
             host_name: raw_service.host_name,

@@ -1,5 +1,5 @@
 #[derive(Debug)]
-pub struct ServiceDescription {
+pub struct ServiceInfo {
     pub address: Option<String>,
     pub domain: Option<String>,
     pub host_name: Option<String>,
@@ -12,20 +12,20 @@ pub struct ServiceDescription {
 }
 
 pub struct DiscoveryListeners<'a> {
-    pub on_service_discovered: Option<&'a Fn(ServiceDescription)>,
+    pub on_service_discovered: Option<&'a Fn(ServiceInfo)>,
     pub on_all_discovered: Option<&'a Fn()>,
 }
 
 pub struct ResolveListeners<'a> {
-    pub on_service_resolved: Option<&'a Fn(ServiceDescription)>,
+    pub on_service_resolved: Option<&'a Fn(ServiceInfo)>,
 }
 
-pub trait ServiceDiscoveryManager {
-    fn new() -> Self;
+pub trait DiscoveryManager {
+    fn new() -> Self where Self: Sized;
 
     fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners);
     fn stop_service_discovery(&self);
-    fn resolve_service(&self, service: ServiceDescription, listeners: ResolveListeners);
+    fn resolve_service(&self, service: ServiceInfo, listeners: ResolveListeners);
 
     fn get_host_name(&self) -> Option<String>;
     fn set_host_name(&self, host_name: &str);

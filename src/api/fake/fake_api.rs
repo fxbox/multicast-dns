@@ -1,16 +1,16 @@
-use wrappers::wrapper::Wrapper;
-use service_discovery::service_discovery_manager::*;
+use api::api::API;
+use discovery::discovery_manager::*;
 
-pub struct FakeWrapper;
+pub struct FakeAPI;
 
-impl Wrapper for FakeWrapper {
-    fn new() -> FakeWrapper {
-        FakeWrapper
+impl API for FakeAPI {
+    fn new() -> FakeAPI {
+        FakeAPI
     }
 
     fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
         if listeners.on_service_discovered.is_some() {
-            (*listeners.on_service_discovered.unwrap())(ServiceDescription {
+            (*listeners.on_service_discovered.unwrap())(ServiceInfo {
                 address: None,
                 domain: Some(format!("local")),
                 host_name: None,
@@ -28,8 +28,8 @@ impl Wrapper for FakeWrapper {
         }
     }
 
-    fn resolve(&self, service: ServiceDescription, listeners: ResolveListeners) {
-        let service = ServiceDescription {
+    fn resolve(&self, service: ServiceInfo, listeners: ResolveListeners) {
+        let service = ServiceInfo {
             address: Some(format!("192.168.1.1")),
             domain: service.domain,
             host_name: Some(format!("fake.local")),
