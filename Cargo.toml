@@ -1,5 +1,5 @@
 [package]
-name = "multicast-dns"
+name = "multicastdns"
 version = "0.1.0"
 authors = ["Aleh Zasypkin <azasypkin@mozilla.com>"]
 

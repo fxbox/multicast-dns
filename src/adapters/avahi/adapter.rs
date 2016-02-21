@@ -247,7 +247,9 @@ impl Adapter for AvahiAdapter {
         if result_code != 0 {
             let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
 
-            panic!("Failed set host name: {}", error_string.unwrap());
+            panic!("Failed set host name: {} (code {:?})",
+                   error_string.unwrap(),
+                   result_code);
         }
     }
 

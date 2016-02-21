@@ -47,35 +47,39 @@ fn main() {
         on_all_discovered: Some(&on_all_discovered),
     };
 
-    multicast_dns.discovery.discover_services(&service_type, discovery_listeners);
+//     multicast_dns.discovery.discover_services(&service_type, discovery_listeners);
+// 
+//     println!("Host name: {:?}", multicast_dns.host.get_name());
+// 
+//     println!("Is valid host name: {:?} - {:?}",
+//              format!("foxbox+3"),
+//              multicast_dns.host.is_valid_name(&format!("foxbox")));
+// 
+//     println!("Is valid host name: {:?} - {:?}",
+//              format!("foxbox-2"),
+//              multicast_dns.host.is_valid_name(&format!("foxbox-2")));
+// 
+//     println!("Is valid host name: {:?} - {:?}",
+//              format!("foxbox.org"),
+//              multicast_dns.host.is_valid_name(&format!("foxbox.org")));
+// 
+//     println!("Alternative to {:?} is {:?}",
+//              format!("foxbox"),
+//              multicast_dns.host.get_alternative_name(&format!("foxbox")));
+// 
+//     println!("Alternative to {:?} is {:?}",
+//              format!("foxbox-2"),
+//              multicast_dns.host.get_alternative_name(&format!("foxbox-2")));
+// 
+//     println!("Alternative to {:?} is {:?}",
+//              format!("foxbox-3"),
+//              multicast_dns.host.get_alternative_name(&format!("foxbox-3")));
+// 
+//     multicast_dns.discovery.stop_service_discovery();
+// 
+//     println!("Going to loop");
 
-    println!("Host name: {:?}", multicast_dns.host.get_name());
-
-    println!("Is valid host name: {:?} - {:?}",
-             format!("foxbox"),
-             multicast_dns.host.is_valid_name(&format!("foxbox")));
-
-    println!("Is valid host name: {:?} - {:?}",
-             format!("foxbox.org"),
-             multicast_dns.host.is_valid_name(&format!("foxbox.org")));
-
-    println!("Alternative to {:?} is {:?}",
-             format!("foxbox"),
-             multicast_dns.host.get_alternative_name(&format!("foxbox")));
-
-    println!("Alternative to {:?} is {:?}",
-             format!("foxbox-2"),
-             multicast_dns.host.get_alternative_name(&format!("foxbox-2")));
-
-    println!("Alternative to {:?} is {:?}",
-             format!("foxbox-3"),
-             multicast_dns.host.get_alternative_name(&format!("foxbox-3")));
-
-    multicast_dns.discovery.stop_service_discovery();
-
-    println!("Going to loop");
-
-    multicast_dns.host.set_name(&format!("foxbox"));
+    multicast_dns.host.set_name(&format!("foxbox-4"));
 
     loop {}
     // discovery_manager.stop_service_discovery();

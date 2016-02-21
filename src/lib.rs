@@ -16,8 +16,8 @@ use discovery::DiscoveryManager;
 use host::HostManager;
 
 pub struct MulticastDNS {
-    pub discovery: Box<DiscoveryManager>,
-    pub host: Box<HostManager>,
+    pub discovery: DiscoveryManager,
+    pub host: HostManager,
 }
 
 impl MulticastDNS {
@@ -26,8 +26,8 @@ impl MulticastDNS {
         let host_adapter: Box<Adapter> = Box::new(PlatformAdapter::new());
 
         MulticastDNS {
-            discovery: Box::new(DiscoveryManager::new(discovery_adapter)),
-            host: Box::new(HostManager::new(host_adapter)),
+            discovery: DiscoveryManager::new(discovery_adapter),
+            host: HostManager::new(host_adapter),
         }
     }
 }
