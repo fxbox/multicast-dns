@@ -1,5 +1,5 @@
 [package]
-name = "multicastdns"
+name = "multicast_dns"
 version = "0.1.0"
 authors = ["Aleh Zasypkin <azasypkin@mozilla.com>"]
 
@@ -10,9 +10,9 @@ docopt_macros = "0.6.81"
 rustc-serialize = "0.3"
 
 [lib]
-name = "multicastdnslib"
+name = "multicast_dns"
 path = "src/lib.rs"
 
 [[bin]]
-name = "multicastdns"
+name = "multicast_dns-bin"
 path = "src/bin.rs"
