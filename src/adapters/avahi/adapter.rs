@@ -20,26 +20,10 @@ pub struct AvahiAdapter {
 }
 
 impl AvahiAdapter {
-    /// Creates `AvahiClient` instance for the provided `AvahiPoll` object.
-    ///
-    /// # Arguments
-    ///
-    /// * `poll` - Abstracted `AvahiPoll` object that we'd like to create client for.
-    ///
-    /// # Return value
-    ///
-    /// Initialized `AvahiClient` instance, if there was an error while creating
-    /// client, this method will `panic!`.
-    fn initialize_client(&self) {
+    fn create_client(&self) {
         let mut client = self.client.borrow_mut();
-
-        if client.is_some() {
-            return;
-        }
-
-        self.initialize_poll();
-
         let mut client_error_code: i32 = 0;
+
         let poll = self.poll.borrow().unwrap();
 
         let avahi_client = unsafe {
@@ -61,6 +45,29 @@ impl AvahiAdapter {
         }
 
         *client = Some(avahi_client);
+    }
+
+    /// Creates `AvahiClient` instance for the provided `AvahiPoll` object.
+    ///
+    /// # Arguments
+    ///
+    /// * `poll` - Abstracted `AvahiPoll` object that we'd like to create client for.
+    ///
+    /// # Return value
+    ///
+    /// Initialized `AvahiClient` instance, if there was an error while creating
+    /// client, this method will `panic!`.
+    fn initialize(&self) {
+        {
+            let client = self.client.borrow();
+            if client.is_some() {
+                return;
+            }
+        }
+
+        self.initialize_poll();
+        self.create_client();
+        self.start_polling();
     }
 
     fn initialize_poll(&self) {
@@ -93,7 +100,7 @@ impl Adapter for AvahiAdapter {
     }
 
     fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
-        self.initialize_client();
+        self.initialize();
 
         let (tx, rx) = mpsc::channel::<BrowseCallbackParameters>();
 
@@ -109,8 +116,6 @@ impl Adapter for AvahiAdapter {
         };
 
         *self.service_browser.borrow_mut() = Some(avahi_service_browser);
-
-        self.start_polling();
 
         for a in rx.iter() {
             match a.event {
@@ -184,6 +189,7 @@ impl Adapter for AvahiAdapter {
 
     fn stop_browser(&self) {
         let mut client = self.client.borrow_mut();
+
         let mut service_browser = self.service_browser.borrow_mut();
         if client.is_some() {
             // This will remove service browser as well as resolver.
@@ -192,22 +198,8 @@ impl Adapter for AvahiAdapter {
             }
 
             *client = None;
-            *service_browser = None
+            *service_browser = None;
         }
-
-        println!("Removed client");
-
-
-        //         let mut service_browser = self.service_browser.borrow_mut();
-        //         if service_browser.is_some() {
-        //             unsafe {
-        //                 avahi_service_browser_free(service_browser.unwrap());
-        //             };
-        //
-        //
-        //         }
-        //
-        //         println!("Removed service browser");
 
         let mut poll = self.poll.borrow_mut();
         if poll.is_some() {
@@ -217,25 +209,23 @@ impl Adapter for AvahiAdapter {
 
             *poll = None;
         }
-
-        println!("Removed poll");
     }
 
-    fn get_host_name(&self) -> Option<String> {
-        self.initialize_client();
+    fn get_host_name(&self) -> String {
+        self.initialize();
 
         let client = self.client.borrow().unwrap();
 
         let host_name_ptr = unsafe { avahi_client_get_host_name(client) };
 
-        AvahiUtils::to_owned_string(host_name_ptr)
+        AvahiUtils::to_owned_string(host_name_ptr).unwrap()
     }
 
-    fn set_host_name(&self, host_name: &str) {
-        self.initialize_client();
+    fn set_host_name(&self, host_name: &str) -> String {
+        self.initialize();
 
-        if host_name == self.get_host_name().unwrap() {
-            return;
+        if host_name == self.get_host_name() {
+            return host_name.to_owned();
         }
 
         let client = self.client.borrow().unwrap();
@@ -251,6 +241,28 @@ impl Adapter for AvahiAdapter {
                    error_string.unwrap(),
                    result_code);
         }
+
+        // HACK: Waiting until host name is upgraded, to know for sure what name is assigned.
+        // Name can differ from the one we set because of possible collisions.
+        // We should wait for the moment when client starts upgrading and only then wait for the
+        // RUNNING state.
+        let mut registering_triggered = false;
+        loop {
+            let state = unsafe { avahi_client_get_state(client) };
+            match state {
+                AvahiClientState::AVAHI_CLIENT_S_REGISTERING => {
+                    registering_triggered = true;
+                }
+                AvahiClientState::AVAHI_CLIENT_S_RUNNING => {
+                    if registering_triggered {
+                        break;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        self.get_host_name()
     }
 
     fn is_valid_host_name(&self, host_name: &str) -> bool {

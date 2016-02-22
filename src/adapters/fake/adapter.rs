@@ -48,12 +48,12 @@ impl Adapter for FakeAdapter {
 
     fn stop_browser(&self) {}
 
-    fn get_host_name(&self) -> Option<String> {
-        return None;
+    fn get_host_name(&self) -> String {
+        return "fake".to_owned();
     }
 
-    fn set_host_name(&self, host_name: &str) {
-        println!("Setting host name: {}", host_name);
+    fn set_host_name(&self, host_name: &str) -> String {
+        host_name.to_owned()
     }
 
     fn is_valid_host_name(&self, host_name: &str) -> bool {

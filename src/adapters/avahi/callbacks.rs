@@ -40,7 +40,7 @@ impl AvahiCallbacks {
     pub extern "C" fn client_callback(s: *mut AvahiClient,
                                       state: AvahiClientState,
                                       userdata: *mut c_void) {
-        println!("Client state changed: {:?}", state);
+        println!("Change in client state {:?}", state);
     }
 
     #[allow(unused_variables)]
@@ -53,8 +53,6 @@ impl AvahiCallbacks {
                                       domain: *const c_char,
                                       flags: AvahiLookupResultFlags,
                                       userdata: *mut c_void) {
-        println!("Browse callback is called: {:?}", event);
-
         let parameters = BrowseCallbackParameters {
             event: event,
             interface: interface,
@@ -66,9 +64,7 @@ impl AvahiCallbacks {
         };
 
         let sender: &mpsc::Sender<BrowseCallbackParameters> = unsafe { mem::transmute(userdata) };
-        println!("Before send");
         sender.send(parameters).unwrap();
-        println!("After send");
     }
 
     #[allow(unused_variables)]
@@ -85,8 +81,6 @@ impl AvahiCallbacks {
                                        txt: *mut AvahiStringList,
                                        flags: AvahiLookupResultFlags,
                                        userdata: *mut c_void) {
-        println!("Resolve callback is called: {:?}", event);
-
         let parameters = ResolveCallbackParameters {
             event: event,
             address: AvahiUtils::parse_address(address),

@@ -9,12 +9,12 @@ impl HostManager {
         HostManager { adapter: adapter }
     }
 
-    pub fn get_name(&self) -> Option<String> {
+    pub fn get_name(&self) -> String {
         self.adapter.get_host_name()
     }
 
-    pub fn set_name(&self, name: &str) {
-        self.adapter.set_host_name(name);
+    pub fn set_name(&self, name: &str) -> String {
+        self.adapter.set_host_name(name)
     }
 
     pub fn is_valid_name(&self, name: &str) -> bool {
