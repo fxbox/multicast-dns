@@ -9,7 +9,7 @@ use libc::c_void;
 use bindings::avahi::*;
 use discovery::discovery_manager::*;
 
-use adapters::Adapter;
+use adapters::adapter::*;
 use adapters::avahi::utils::*;
 use adapters::avahi::callbacks::*;
 
@@ -90,15 +90,7 @@ impl AvahiAdapter {
     }
 }
 
-impl Adapter for AvahiAdapter {
-    fn new() -> AvahiAdapter {
-        AvahiAdapter {
-            client: RefCell::new(None),
-            poll: RefCell::new(None),
-            service_browser: RefCell::new(None),
-        }
-    }
-
+impl DiscoveryAdapter for AvahiAdapter {
     fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
         self.initialize();
 
@@ -210,7 +202,9 @@ impl Adapter for AvahiAdapter {
             *poll = None;
         }
     }
+}
 
+impl HostAdapter for AvahiAdapter {
     fn get_host_name(&self) -> String {
         self.initialize();
 
@@ -285,5 +279,15 @@ impl Adapter for AvahiAdapter {
         unsafe { avahi_free(alternative_host_name_ptr as *mut c_void) };
 
         alternative_host_name.unwrap()
+    }
+}
+
+impl Adapter for AvahiAdapter {
+    fn new() -> AvahiAdapter {
+        AvahiAdapter {
+            client: RefCell::new(None),
+            poll: RefCell::new(None),
+            service_browser: RefCell::new(None),
+        }
     }
 }

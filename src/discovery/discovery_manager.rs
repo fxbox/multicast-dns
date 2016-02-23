@@ -1,4 +1,6 @@
-use adapters::Adapter;
+use adapters::adapter::Adapter;
+use adapters::adapter::DiscoveryAdapter;
+use adapters::PlatformDependentAdapter;
 
 #[derive(Debug)]
 pub struct ServiceInfo {
@@ -23,11 +25,13 @@ pub struct ResolveListeners<'a> {
 }
 
 pub struct DiscoveryManager {
-    adapter: Box<Adapter>,
+    adapter: Box<DiscoveryAdapter>,
 }
 
 impl DiscoveryManager {
-    pub fn new(adapter: Box<Adapter>) -> DiscoveryManager {
+    pub fn new() -> DiscoveryManager {
+        let adapter: Box<DiscoveryAdapter> = Box::new(PlatformDependentAdapter::new());
+
         DiscoveryManager { adapter: adapter }
     }
 

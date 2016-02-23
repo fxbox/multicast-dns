@@ -5,7 +5,7 @@ extern crate docopt;
 extern crate rustc_serialize;
 extern crate multicast_dns;
 
-use multicast_dns::MulticastDNS;
+use multicast_dns::host::HostManager;
 use multicast_dns::discovery::discovery_manager::*;
 
 docopt!(Args derive Debug, "
@@ -21,9 +21,9 @@ Options:
 fn main() {
     let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
 
-    let multicast_dns = MulticastDNS::new();
-
     if args.flag_type.is_some() {
+        let discovery_manager = DiscoveryManager::new();
+
         let on_service_resolved = |service: ServiceInfo| {
             println!("Service resolved: {:?}", service);
         };
@@ -35,7 +35,7 @@ fn main() {
                 on_service_resolved: Some(&on_service_resolved),
             };
 
-            multicast_dns.discovery.resolve_service(service, resolve_listeners);
+            discovery_manager.resolve_service(service, resolve_listeners);
         };
 
         let on_all_discovered = || {
@@ -47,16 +47,16 @@ fn main() {
             on_all_discovered: Some(&on_all_discovered),
         };
 
-        multicast_dns.discovery.discover_services(&args.flag_type.unwrap(), discovery_listeners);
-        multicast_dns.discovery.stop_service_discovery();
+        discovery_manager.discover_services(&args.flag_type.unwrap(), discovery_listeners);
     }
 
     if args.flag_name.is_some() {
+        let host_manager = HostManager::new();
         let new_host_name = args.flag_name.unwrap();
+
         println!("Hostname update ({} -> {}) is requested",
-                 multicast_dns.host.get_name(),
+                 host_manager.get_name(),
                  &new_host_name);
-        println!("New Host name: {:?}",
-                 multicast_dns.host.set_name(&new_host_name));
+        println!("New Host name: {:?}", host_manager.set_name(&new_host_name));
     }
 }

@@ -1,13 +1,9 @@
-use adapters::Adapter;
+use adapters::adapter::*;
 use discovery::discovery_manager::*;
 
 pub struct FakeAdapter;
 
-impl Adapter for FakeAdapter {
-    fn new() -> FakeAdapter {
-        FakeAdapter
-    }
-
+impl DiscoveryAdapter for FakeAdapter {
     fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
         if listeners.on_service_discovered.is_some() {
             (*listeners.on_service_discovered.unwrap())(ServiceInfo {
@@ -47,7 +43,9 @@ impl Adapter for FakeAdapter {
     }
 
     fn stop_browser(&self) {}
+}
 
+impl HostAdapter for FakeAdapter {
     fn get_host_name(&self) -> String {
         return "fake".to_owned();
     }
@@ -63,5 +61,11 @@ impl Adapter for FakeAdapter {
 
     fn get_alternative_host_name(&self, host_name: &str) -> String {
         format!("{}-2", host_name)
+    }
+}
+
+impl Adapter for FakeAdapter {
+    fn new() -> FakeAdapter {
+        FakeAdapter
     }
 }

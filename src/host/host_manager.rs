@@ -1,11 +1,15 @@
-use adapters::Adapter;
+use adapters::adapter::Adapter;
+use adapters::adapter::HostAdapter;
+use adapters::PlatformDependentAdapter;
 
 pub struct HostManager {
-    adapter: Box<Adapter>,
+    adapter: Box<HostAdapter>,
 }
 
 impl HostManager {
-    pub fn new(adapter: Box<Adapter>) -> HostManager {
+    pub fn new() -> HostManager {
+        let adapter: Box<HostAdapter> = Box::new(PlatformDependentAdapter::new());
+
         HostManager { adapter: adapter }
     }
 
