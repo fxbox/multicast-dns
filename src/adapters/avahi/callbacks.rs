@@ -40,7 +40,7 @@ impl AvahiCallbacks {
     pub extern "C" fn client_callback(s: *mut AvahiClient,
                                       state: AvahiClientState,
                                       userdata: *mut c_void) {
-        println!("Change in client state {:?}", state);
+        // println!("Change in client state {:?}", state);
     }
 
     #[allow(unused_variables)]

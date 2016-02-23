@@ -4,7 +4,7 @@ use discovery::discovery_manager::*;
 pub struct FakeAdapter;
 
 impl DiscoveryAdapter for FakeAdapter {
-    fn start_browser(&self, service_type: &str, listeners: DiscoveryListeners) {
+    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners) {
         if listeners.on_service_discovered.is_some() {
             (*listeners.on_service_discovered.unwrap())(ServiceInfo {
                 address: None,
@@ -42,25 +42,31 @@ impl DiscoveryAdapter for FakeAdapter {
         }
     }
 
-    fn stop_browser(&self) {}
+    fn stop_discovery(&self) {}
 }
 
 impl HostAdapter for FakeAdapter {
-    fn get_host_name(&self) -> String {
+    fn get_name(&self) -> String {
         return "fake".to_owned();
     }
 
-    fn set_host_name(&self, host_name: &str) -> String {
+    fn set_name(&self, host_name: &str) -> String {
         host_name.to_owned()
     }
 
-    fn is_valid_host_name(&self, host_name: &str) -> bool {
+    fn is_valid_name(&self, host_name: &str) -> bool {
         println!("Verifying host name: {}", host_name);
         true
     }
 
-    fn get_alternative_host_name(&self, host_name: &str) -> String {
+    fn get_alternative_name(&self, host_name: &str) -> String {
         format!("{}-2", host_name)
+    }
+}
+
+impl Drop for FakeAdapter {
+    fn drop(&mut self) {
+        println!("There is no need to do anything, just letting you know that I'm being dropped!");
     }
 }
 

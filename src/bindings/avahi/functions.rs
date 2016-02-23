@@ -95,8 +95,8 @@ extern "C" {
     pub fn avahi_is_valid_host_name(host_name: *const c_char) -> c_int;
 
     pub fn avahi_alternative_host_name(host_name: *const c_char) -> *const c_char;
-    
-    pub fn avahi_client_get_state(client: *mut 	AvahiClient) -> AvahiClientState;	
+
+    pub fn avahi_client_get_state(client: *mut AvahiClient) -> AvahiClientState;
 
     /// Browse for domains on the local network.
     ///
