@@ -4,6 +4,8 @@ Requires ```avahi-common```, ```avahi-client``` and ```dbus-1``` libs to compile
 
 For non-linux platforms that don't have required avahi libs, fake implementation is used. 
 
+See [Multicast DNS Utils](https://github.com/fxbox/multicast-dns-utils) command line app as an example.
+
 Examples:
 
 ```
@@ -31,7 +33,7 @@ or
 
 ```
 extern crate multicast_dns;
-use multicast_dns::discovery::DiscoveryManager;
+use multicast_dns::discovery::*;
 
 fn main() {
     let service_type = format!("_device-info._tcp");
