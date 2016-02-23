@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::cell::Cell;
 use std::ffi::CString;
 use std::mem;
 use std::ptr;
@@ -14,9 +14,9 @@ use adapters::avahi::utils::*;
 use adapters::avahi::callbacks::*;
 
 pub struct AvahiAdapter {
-    client: RefCell<Option<*mut AvahiClient>>,
-    poll: RefCell<Option<*mut AvahiThreadedPoll>>,
-    service_browser: RefCell<Option<*mut AvahiServiceBrowser>>,
+    client: Cell<Option<*mut AvahiClient>>,
+    poll: Cell<Option<*mut AvahiThreadedPoll>>,
+    service_browser: Cell<Option<*mut AvahiServiceBrowser>>,
 }
 
 impl AvahiAdapter {
@@ -27,7 +27,6 @@ impl AvahiAdapter {
     ///
     /// * `poll` - Abstracted `AvahiPoll` object that we'd like to create client for.
     fn create_client(&self, poll: *mut AvahiPoll) {
-        let mut client = self.client.borrow_mut();
         let mut client_error_code: i32 = 0;
 
         let avahi_client = unsafe {
@@ -48,13 +47,13 @@ impl AvahiAdapter {
             panic!("Failed to create avahi client: {}", error_string.unwrap());
         }
 
-        *client = Some(avahi_client);
+        self.client.set(Some(avahi_client));
     }
 
     /// Initializes `AvahiClient` and `AvahiPoll` objects and runs polling. If client
     /// has been already initialized, this method does nothing.
     fn initialize(&self) {
-        if self.client.borrow().is_some() {
+        if self.client.get().is_some() {
             return;
         }
 
@@ -72,30 +71,28 @@ impl AvahiAdapter {
             panic!("Avahi threaded poll could not be started!");
         }
 
-        *self.poll.borrow_mut() = Some(threaded_poll);
+        self.poll.set(Some(threaded_poll));
     }
 
     fn destroy(&self) {
-        let mut client = self.client.borrow_mut();
-
-        let mut service_browser = self.service_browser.borrow_mut();
+        let client = self.client.get();
         if client.is_some() {
             // This will remove service browser as well as resolver.
             unsafe {
                 avahi_client_free(client.unwrap());
             }
 
-            *client = None;
-            *service_browser = None;
+            self.client.set(None);
+            self.service_browser.set(None);
         }
 
-        let mut poll = self.poll.borrow_mut();
+        let poll = self.poll.get();
         if poll.is_some() {
             unsafe {
                 avahi_threaded_poll_free(poll.unwrap());
             }
 
-            *poll = None;
+            self.poll.set(None);
         }
     }
 }
@@ -107,7 +104,7 @@ impl DiscoveryAdapter for AvahiAdapter {
         let (tx, rx) = mpsc::channel::<BrowseCallbackParameters>();
 
         let avahi_service_browser = unsafe {
-            avahi_service_browser_new(self.client.borrow().unwrap(),
+            avahi_service_browser_new(self.client.get().unwrap(),
                                       AvahiIfIndex::AVAHI_IF_UNSPEC,
                                       AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                       AvahiUtils::string_to_ptr(service_type),
@@ -117,7 +114,7 @@ impl DiscoveryAdapter for AvahiAdapter {
                                       mem::transmute(&tx.clone()))
         };
 
-        *self.service_browser.borrow_mut() = Some(avahi_service_browser);
+        self.service_browser.set(Some(avahi_service_browser));
 
         for a in rx.iter() {
             match a.event {
@@ -154,7 +151,7 @@ impl DiscoveryAdapter for AvahiAdapter {
         let (tx, rx) = mpsc::channel::<ResolveCallbackParameters>();
 
         let avahi_service_resolver = unsafe {
-            avahi_service_resolver_new(self.client.borrow().unwrap(),
+            avahi_service_resolver_new(self.client.get().unwrap(),
                                        service.interface,
                                        service.protocol,
                                        CString::new(service.name.unwrap()).unwrap().as_ptr(),
@@ -206,9 +203,7 @@ impl HostAdapter for AvahiAdapter {
     fn get_name(&self) -> String {
         self.initialize();
 
-        let client = self.client.borrow().unwrap();
-
-        let host_name_ptr = unsafe { avahi_client_get_host_name(client) };
+        let host_name_ptr = unsafe { avahi_client_get_host_name(self.client.get().unwrap()) };
 
         AvahiUtils::to_owned_string(host_name_ptr).unwrap()
     }
@@ -220,7 +215,7 @@ impl HostAdapter for AvahiAdapter {
             return host_name.to_owned();
         }
 
-        let client = self.client.borrow().unwrap();
+        let client = self.client.get().unwrap();
 
         let result_code = unsafe {
             avahi_client_set_host_name(client, AvahiUtils::string_to_ptr(host_name))
@@ -289,9 +284,9 @@ impl Drop for AvahiAdapter {
 impl Adapter for AvahiAdapter {
     fn new() -> AvahiAdapter {
         AvahiAdapter {
-            client: RefCell::new(None),
-            poll: RefCell::new(None),
-            service_browser: RefCell::new(None),
+            client: Cell::new(None),
+            poll: Cell::new(None),
+            service_browser: Cell::new(None),
         }
     }
 }
