@@ -5,6 +5,8 @@ pub struct FakeAdapter;
 
 impl DiscoveryAdapter for FakeAdapter {
     fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners) {
+        FakeAdapter::print_warning();
+
         if listeners.on_service_discovered.is_some() {
             (*listeners.on_service_discovered.unwrap())(ServiceInfo {
                 address: None,
@@ -47,19 +49,23 @@ impl DiscoveryAdapter for FakeAdapter {
 
 impl HostAdapter for FakeAdapter {
     fn get_name(&self) -> String {
+        FakeAdapter::print_warning();
         return "fake".to_owned();
     }
 
     fn set_name(&self, host_name: &str) -> String {
+        FakeAdapter::print_warning();
         host_name.to_owned()
     }
 
     fn is_valid_name(&self, host_name: &str) -> bool {
+        FakeAdapter::print_warning();
         println!("Verifying host name: {}", host_name);
         true
     }
 
     fn get_alternative_name(&self, host_name: &str) -> String {
+        FakeAdapter::print_warning();
         format!("{}-2", host_name)
     }
 }
@@ -72,6 +78,14 @@ impl Drop for FakeAdapter {
 
 impl Adapter for FakeAdapter {
     fn new() -> FakeAdapter {
+        FakeAdapter::print_warning();
         FakeAdapter
+    }
+}
+
+impl FakeAdapter {
+    fn print_warning() {
+        println!("WARNING: Your platform is not supported by real mDNS adapter, fake adapter is \
+                  used!");
     }
 }
