@@ -13,7 +13,7 @@ pub struct AvahiCallbacks;
 pub struct BrowseCallbackParameters {
     pub event: AvahiBrowserEvent,
     pub interface: i32,
-    pub protocol: i32,
+    pub protocol: AvahiProtocol,
     pub name: Option<String>,
     pub service_type: Option<String>,
     pub domain: Option<String>,
@@ -26,7 +26,7 @@ pub struct ResolveCallbackParameters {
     pub address: Option<String>,
     pub interface: i32,
     pub port: u16,
-    pub protocol: i32,
+    pub protocol: AvahiProtocol,
     pub name: Option<String>,
     pub service_type: Option<String>,
     pub domain: Option<String>,
@@ -46,7 +46,7 @@ impl AvahiCallbacks {
     #[allow(unused_variables)]
     pub extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
                                       interface: c_int,
-                                      protocol: c_int,
+                                      protocol: AvahiProtocol,
                                       event: AvahiBrowserEvent,
                                       name: *const c_char,
                                       service_type: *const c_char,
@@ -70,7 +70,7 @@ impl AvahiCallbacks {
     #[allow(unused_variables)]
     pub extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
                                        interface: c_int,
-                                       protocol: c_int,
+                                       protocol: AvahiProtocol,
                                        event: AvahiResolverEvent,
                                        name: *const c_char,
                                        service_type: *const c_char,
@@ -97,5 +97,12 @@ impl AvahiCallbacks {
 
         let sender: &mpsc::Sender<ResolveCallbackParameters> = unsafe { mem::transmute(userdata) };
         sender.send(parameters).unwrap();
+    }
+
+    #[allow(unused_variables)]
+    pub extern "C" fn entry_group_callback(group: *mut AvahiEntryGroup,
+                                           state: AvahiEntryGroupState,
+                                           userdata: *mut c_void) {
+        // println!("Change in entry group state {:?}", state);
     }
 }

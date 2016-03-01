@@ -19,6 +19,36 @@ pub struct AvahiAdapter {
     service_browser: Cell<Option<*mut AvahiServiceBrowser>>,
 }
 
+fn avahi_protocol_to_service_protocol(protocol: AvahiProtocol) -> ServiceProtocol {
+    match protocol {
+        AvahiProtocol::AVAHI_PROTO_INET => return ServiceProtocol::IPv4,
+        AvahiProtocol::AVAHI_PROTO_INET6 => return ServiceProtocol::IPv6,
+        AvahiProtocol::AVAHI_PROTO_UNSPEC => return ServiceProtocol::Uspecified,
+    }
+}
+
+fn service_protocol_to_avahi_protocol(protocol: ServiceProtocol) -> AvahiProtocol {
+    match protocol {
+        ServiceProtocol::IPv4 => return AvahiProtocol::AVAHI_PROTO_INET,
+        ServiceProtocol::IPv6 => return AvahiProtocol::AVAHI_PROTO_INET6,
+        ServiceProtocol::Uspecified => return AvahiProtocol::AVAHI_PROTO_UNSPEC,
+    }
+}
+
+fn name_fqdn_to_cname_rdata(name_fqdn: &str) -> Vec<u8> {
+    let mut rdata: Vec<u8> = Vec::new();
+
+    for part in name_fqdn.split(".") {
+        rdata.push(part.len() as u8);
+        rdata.extend_from_slice(part.as_bytes());
+    }
+    
+    // Push NULL byte.
+    rdata.push(0);
+
+    rdata
+}
+
 impl AvahiAdapter {
     /// Creates `AvahiClient` instance for the provided `AvahiPoll` object. If there
     /// was an error while creating client, this method will `panic!`
@@ -103,11 +133,13 @@ impl DiscoveryAdapter for AvahiAdapter {
 
         let (tx, rx) = mpsc::channel::<BrowseCallbackParameters>();
 
+        let service_type = AvahiUtils::to_c_string(service_type.to_owned()).into_raw();
+
         let avahi_service_browser = unsafe {
             avahi_service_browser_new(self.client.get().unwrap(),
                                       AvahiIfIndex::AVAHI_IF_UNSPEC,
                                       AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                      AvahiUtils::string_to_ptr(service_type),
+                                      service_type,
                                       ptr::null_mut(),
                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                       *Box::new(AvahiCallbacks::browse_callback),
@@ -126,7 +158,7 @@ impl DiscoveryAdapter for AvahiAdapter {
                         interface: a.interface,
                         name: a.name,
                         port: 0,
-                        protocol: a.protocol,
+                        protocol: avahi_protocol_to_service_protocol(a.protocol),
                         txt: None,
                         type_name: a.service_type,
                     };
@@ -142,9 +174,14 @@ impl DiscoveryAdapter for AvahiAdapter {
 
                     break;
                 }
-                _ => println!("Default {:?}", a.event),
+                _ => {
+                    // println!("Default {:?}", a.event)
+                }
             }
         }
+
+        // Reconstruct string to properly free up memory.
+        unsafe { CString::from_raw(service_type) };
     }
 
     fn resolve(&self, service: ServiceInfo, listeners: ResolveListeners) {
@@ -153,7 +190,7 @@ impl DiscoveryAdapter for AvahiAdapter {
         let avahi_service_resolver = unsafe {
             avahi_service_resolver_new(self.client.get().unwrap(),
                                        service.interface,
-                                       service.protocol,
+                                       service_protocol_to_avahi_protocol(service.protocol),
                                        CString::new(service.name.unwrap()).unwrap().as_ptr(),
                                        CString::new(service.type_name.unwrap()).unwrap().as_ptr(),
                                        CString::new(service.domain.unwrap()).unwrap().as_ptr(),
@@ -172,7 +209,7 @@ impl DiscoveryAdapter for AvahiAdapter {
             interface: raw_service.interface,
             name: raw_service.name,
             port: raw_service.port,
-            protocol: raw_service.protocol,
+            protocol: avahi_protocol_to_service_protocol(raw_service.protocol),
             txt: raw_service.txt,
             type_name: raw_service.service_type,
         };
@@ -208,6 +245,16 @@ impl HostAdapter for AvahiAdapter {
         AvahiUtils::to_owned_string(host_name_ptr).unwrap()
     }
 
+    fn get_name_fqdn(&self) -> String {
+        self.initialize();
+
+        let host_name_fqdn_ptr = unsafe {
+            avahi_client_get_host_name_fqdn(self.client.get().unwrap())
+        };
+
+        AvahiUtils::to_owned_string(host_name_fqdn_ptr).unwrap()
+    }
+
     fn set_name(&self, host_name: &str) -> String {
         self.initialize();
 
@@ -216,10 +263,9 @@ impl HostAdapter for AvahiAdapter {
         }
 
         let client = self.client.get().unwrap();
+        let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
-        let result_code = unsafe {
-            avahi_client_set_host_name(client, AvahiUtils::string_to_ptr(host_name))
-        };
+        let result_code = unsafe { avahi_client_set_host_name(client, host_name) };
 
         if result_code != 0 {
             let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
@@ -249,29 +295,95 @@ impl HostAdapter for AvahiAdapter {
             }
         }
 
+        // Reconstruct string to properly free up memory.
+        unsafe { CString::from_raw(host_name) };
+
         self.get_name()
     }
 
     fn is_valid_name(&self, host_name: &str) -> bool {
-        let host_name_ptr = AvahiUtils::string_to_ptr(host_name);
+        let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
-        let is_valid = unsafe { avahi_is_valid_host_name(host_name_ptr) };
+        let is_valid = unsafe { avahi_is_valid_host_name(host_name) };
+
+        // Reconstruct string to properly free up memory.
+        unsafe { CString::from_raw(host_name) };
 
         is_valid == 1
     }
 
     fn get_alternative_name(&self, host_name: &str) -> String {
-        let original_host_name_ptr = AvahiUtils::string_to_ptr(host_name);
+        let original_host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
-        let alternative_host_name_ptr = unsafe {
-            avahi_alternative_host_name(original_host_name_ptr)
-        };
+        let alternative_host_name_ptr = unsafe { avahi_alternative_host_name(original_host_name) };
 
         let alternative_host_name = AvahiUtils::to_owned_string(alternative_host_name_ptr);
 
         unsafe { avahi_free(alternative_host_name_ptr as *mut c_void) };
 
+        // Reconstruct string to properly free up memory.
+        unsafe { CString::from_raw(original_host_name) };
+
         alternative_host_name.unwrap()
+    }
+
+    fn add_name_alias(&self, host_name: &str) {
+        self.initialize();
+
+        if host_name == self.get_name() {
+            return;
+        }
+
+        let client = self.client.get().unwrap();
+
+        let entry_group = unsafe {
+            avahi_entry_group_new(client,
+                                  *Box::new(AvahiCallbacks::entry_group_callback),
+                                  ptr::null_mut())
+        };
+
+        let rdata = &name_fqdn_to_cname_rdata(&self.get_name_fqdn());
+
+        let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
+
+        let result_code = unsafe {
+            avahi_entry_group_add_record(entry_group,
+                                         -1,
+                                         AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                                         AvahiPublishFlags::AVAHI_PUBLISH_USE_MULTICAST,
+                                         host_name,
+                                         AvahiRecordClass::AVAHI_IN,
+                                         AvahiRecordType::AVAHI_CNAME,
+                                         60,
+                                         rdata.as_ptr() as *mut _,
+                                         rdata.len())
+        };
+
+
+        if result_code != 0 {
+            let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
+
+            panic!("Failed to add new entry group record: {} (code {:?})",
+                   error_string.unwrap(),
+                   result_code);
+        } else {
+            println!("Record successfully added");
+        }
+
+        let result_code = unsafe { avahi_entry_group_commit(entry_group) };
+
+        if result_code != 0 {
+            let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
+
+            panic!("Failed to commit new entry group record: {} (code {:?})",
+                   error_string.unwrap(),
+                   result_code);
+        } else {
+            println!("Entry group successfully comitted");
+        }
+
+        // Reconstruct string to properly free up memory.
+        unsafe { CString::from_raw(host_name) };
     }
 }
 

@@ -8,9 +8,11 @@ pub trait DiscoveryAdapter {
 
 pub trait HostAdapter {
     fn get_name(&self) -> String;
+    fn get_name_fqdn(&self) -> String;
     fn set_name(&self, host_name: &str) -> String;
     fn is_valid_name(&self, host_name: &str) -> bool;
     fn get_alternative_name(&self, host_name: &str) -> String;
+    fn add_name_alias(&self, host_name: &str);
 }
 
 pub trait Adapter : DiscoveryAdapter + HostAdapter + Drop {

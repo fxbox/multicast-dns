@@ -7,8 +7,8 @@ use bindings::avahi::*;
 pub struct AvahiUtils;
 
 impl AvahiUtils {
-    pub fn string_to_ptr(r_string: &str) -> *const c_char {
-        CString::new(r_string).unwrap().as_ptr()
+    pub fn to_c_string(r_string: String) -> CString {
+        CString::new(r_string).unwrap()
     }
 
     pub fn to_owned_string(c_string: *const c_char) -> Option<String> {

@@ -73,7 +73,7 @@ pub struct AvahiClient {
 
 pub type ServiceBrowserCallback = extern "C" fn(*mut AvahiServiceBrowser,
                                                 c_int,
-                                                c_int,
+                                                AvahiProtocol,
                                                 AvahiBrowserEvent,
                                                 *const c_char,
                                                 *const c_char,
@@ -84,7 +84,7 @@ pub type ServiceBrowserCallback = extern "C" fn(*mut AvahiServiceBrowser,
 
 pub type ServiceResolverCallback = extern "C" fn(*mut AvahiServiceResolver,
                                                  c_int,
-                                                 c_int,
+                                                 AvahiProtocol,
                                                  AvahiResolverEvent,
                                                  *const c_char,
                                                  *const c_char,
@@ -96,4 +96,10 @@ pub type ServiceResolverCallback = extern "C" fn(*mut AvahiServiceResolver,
                                                  AvahiLookupResultFlags,
                                                  *mut c_void)
                                                 ;
+
+pub type AvahiEntryGroupCallback = extern "C" fn(*mut AvahiEntryGroup,
+                                                 AvahiEntryGroupState,
+                                                 *mut c_void)
+                                                ;
+
 pub static AVAHI_ADDRESS_STR_MAX: usize = 4 * 8 + 7 + 1; // 1 is for NUL

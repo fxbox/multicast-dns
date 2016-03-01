@@ -96,6 +96,8 @@ extern "C" {
 
     pub fn avahi_alternative_host_name(host_name: *const c_char) -> *const c_char;
 
+    pub fn avahi_client_get_host_name_fqdn(client: *mut AvahiClient) -> *const c_char;
+
     pub fn avahi_client_get_state(client: *mut AvahiClient) -> AvahiClientState;
 
     /// Browse for domains on the local network.
@@ -169,7 +171,7 @@ extern "C" {
     /// A service resolver `AvahiServiceResolver` object.
     pub fn avahi_service_resolver_new(client: *mut AvahiClient,
                                       interface: c_int,
-                                      protocol: c_int,
+                                      protocol: AvahiProtocol,
                                       name: *const c_char,
                                       service_type: *const c_char,
                                       domain: *const c_char,
@@ -269,4 +271,26 @@ extern "C" {
     ///
     /// * `threaded_poll` - Main loop object returned from `avahi_threaded_poll_new`.
     pub fn avahi_threaded_poll_free(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
+
+    pub fn avahi_entry_group_new(client: *mut AvahiClient,
+                                 callback: AvahiEntryGroupCallback,
+                                 userdata: *mut c_void)
+                                 -> *mut AvahiEntryGroup;
+
+
+    pub fn avahi_entry_group_add_record(group: *mut AvahiEntryGroup,
+                                        interface: c_int,
+                                        protocol: AvahiProtocol,
+                                        flags: AvahiPublishFlags,
+                                        name: *const c_char,
+                                        record_class: AvahiRecordClass,
+                                        record_type: AvahiRecordType,
+                                        ttl: u32,
+                                        rdata: *const c_void,
+                                        size: usize)
+                                        -> c_int;
+
+    pub fn avahi_entry_group_commit(group: *mut AvahiEntryGroup) -> c_int;
+
+    pub fn avahi_entry_group_get_state(group: *mut AvahiEntryGroup) -> c_int;
 }

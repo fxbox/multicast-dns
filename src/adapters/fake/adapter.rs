@@ -53,6 +53,10 @@ impl HostAdapter for FakeAdapter {
         return "fake".to_owned();
     }
 
+    fn get_name_fqdn(&self) -> String {
+        return "fake.local".to_owned();
+    }
+
     fn set_name(&self, host_name: &str) -> String {
         FakeAdapter::print_warning();
         host_name.to_owned()
@@ -67,6 +71,10 @@ impl HostAdapter for FakeAdapter {
     fn get_alternative_name(&self, host_name: &str) -> String {
         FakeAdapter::print_warning();
         format!("{}-2", host_name)
+    }
+
+    fn add_name_alias(&self, host_name: &str) -> String {
+        host_name.to_owned()
     }
 }
 

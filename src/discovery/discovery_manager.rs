@@ -3,6 +3,13 @@ use adapters::adapter::DiscoveryAdapter;
 use adapters::PlatformDependentAdapter;
 
 #[derive(Debug)]
+pub enum ServiceProtocol {
+    IPv4 = 0,
+    IPv6 = 1,
+    Uspecified = -1,
+}
+
+#[derive(Debug)]
 pub struct ServiceInfo {
     pub address: Option<String>,
     pub domain: Option<String>,
@@ -10,7 +17,7 @@ pub struct ServiceInfo {
     pub interface: i32,
     pub name: Option<String>,
     pub port: u16,
-    pub protocol: i32,
+    pub protocol: ServiceProtocol,
     pub type_name: Option<String>,
     pub txt: Option<String>,
 }

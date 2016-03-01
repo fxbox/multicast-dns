@@ -28,4 +28,8 @@ impl HostManager {
     pub fn get_alternative_name(&self, name: &str) -> String {
         self.adapter.get_alternative_name(name)
     }
+
+    pub fn add_name_alias(&self, name: &str) {
+        self.adapter.add_name_alias(name);
+    }
 }

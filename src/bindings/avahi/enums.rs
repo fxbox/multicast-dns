@@ -55,6 +55,7 @@ pub enum AvahiBrowserEvent {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 #[allow(dead_code)]
 pub enum AvahiProtocol {
     /// IPv4.
@@ -103,4 +104,52 @@ pub enum AvahiDomainBrowserType {
     AVAHI_DOMAIN_BROWSER_BROWSE_LEGACY,
 
     AVAHI_DOMAIN_BROWSER_MAX,
+}
+
+#[repr(C)]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum AvahiEntryGroupState {
+    AVAHI_ENTRY_GROUP_UNCOMMITED,
+    AVAHI_ENTRY_GROUP_REGISTERING,
+    AVAHI_ENTRY_GROUP_ESTABLISHED,
+    AVAHI_ENTRY_GROUP_COLLISION,
+    AVAHI_ENTRY_GROUP_FAILURE,
+}
+
+#[repr(C)]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum AvahiPublishFlags {
+    AVAHI_PUBLISH_UNIQUE = 1,
+    AVAHI_PUBLISH_NO_PROBE = 2,
+    AVAHI_PUBLISH_NO_ANNOUNCE = 4,
+    AVAHI_PUBLISH_ALLOW_MULTIPLE = 8,
+    AVAHI_PUBLISH_NO_REVERSE = 16,
+    AVAHI_PUBLISH_NO_COOKIE = 32,
+    AVAHI_PUBLISH_UPDATE = 64,
+    AVAHI_PUBLISH_USE_WIDE_AREA = 128,
+    AVAHI_PUBLISH_USE_MULTICAST = 256,
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub enum AvahiRecordClass {
+    AVAHI_IN = 1,
+}
+
+#[repr(C)]
+#[allow(dead_code)]
+#[derive(Debug)]
+pub enum AvahiRecordType {
+    AVAHI_A = 1,
+    AVAHI_NS = 2,
+    AVAHI_CNAME = 5,
+    AVAHI_SOA = 6,
+    AVAHI_PTR = 12,
+    AVAHI_HINFO = 13,
+    AVAHI_MX = 15,
+    AVAHI_TXT = 16,
+    AVAHI_AAA = 28,
+    AVAHI_SRV = 33,
 }
