@@ -40,7 +40,7 @@ impl AvahiCallbacks {
     pub extern "C" fn client_callback(s: *mut AvahiClient,
                                       state: AvahiClientState,
                                       userdata: *mut c_void) {
-        // println!("Change in client state {:?}", state);
+        debug!("Client state has changed to {:?}.", state);
     }
 
     #[allow(unused_variables)]
@@ -53,6 +53,7 @@ impl AvahiCallbacks {
                                       domain: *const c_char,
                                       flags: AvahiLookupResultFlags,
                                       userdata: *mut c_void) {
+
         let parameters = BrowseCallbackParameters {
             event: event,
             interface: interface,
@@ -62,6 +63,8 @@ impl AvahiCallbacks {
             domain: AvahiUtils::to_owned_string(domain),
             flags: flags,
         };
+
+        debug!("Service state has changed: {:?}.", parameters);
 
         let sender: &mpsc::Sender<BrowseCallbackParameters> = unsafe { mem::transmute(userdata) };
         sender.send(parameters).unwrap();
@@ -95,6 +98,8 @@ impl AvahiCallbacks {
             flags: flags,
         };
 
+        debug!("Service resolution state has changed: {:?}.", parameters);
+
         let sender: &mpsc::Sender<ResolveCallbackParameters> = unsafe { mem::transmute(userdata) };
         sender.send(parameters).unwrap();
     }
@@ -103,6 +108,6 @@ impl AvahiCallbacks {
     pub extern "C" fn entry_group_callback(group: *mut AvahiEntryGroup,
                                            state: AvahiEntryGroupState,
                                            userdata: *mut c_void) {
-        // println!("Change in entry group state {:?}", state);
+        debug!("Entry group state has changed to {:?}.", state);
     }
 }

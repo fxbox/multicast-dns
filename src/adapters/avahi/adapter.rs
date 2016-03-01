@@ -74,10 +74,12 @@ impl AvahiAdapter {
                 avahi_strerror(client_error_code)
             });
 
-            panic!("Failed to create avahi client: {}", error_string.unwrap());
+            panic!("Failed to create avahi client: {}.", error_string.unwrap());
         }
 
         self.client.set(Some(avahi_client));
+
+        debug!("Client is created.");
     }
 
     /// Initializes `AvahiClient` and `AvahiPoll` objects and runs polling. If client
@@ -87,12 +89,16 @@ impl AvahiAdapter {
             return;
         }
 
+        debug!("New client initialization is requested.");
+
         // AvahiClient works with abstracted poll object only, so we need both threaded
         // and abstracted polls.
         let (threaded_poll, abstracted_poll) = unsafe {
             let threaded_poll = avahi_threaded_poll_new();
             (threaded_poll, avahi_threaded_poll_get(threaded_poll))
         };
+
+        debug!("Threaded poll is created.");
 
         self.create_client(abstracted_poll);
 
@@ -105,6 +111,8 @@ impl AvahiAdapter {
     }
 
     fn destroy(&self) {
+        debug!("Adapter is going to be destroyed.");
+
         let client = self.client.get();
         if client.is_some() {
             // This will remove service browser as well as resolver.
@@ -114,6 +122,8 @@ impl AvahiAdapter {
 
             self.client.set(None);
             self.service_browser.set(None);
+
+            debug!("Client instance is destroyed.");
         }
 
         let poll = self.poll.get();
@@ -123,12 +133,16 @@ impl AvahiAdapter {
             }
 
             self.poll.set(None);
+
+            debug!("Poll instance is destroyed.");
         }
     }
 }
 
 impl DiscoveryAdapter for AvahiAdapter {
     fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners) {
+        debug!("Discovery started for the service: {}.", service_type);
+
         self.initialize();
 
         let (tx, rx) = mpsc::channel::<BrowseCallbackParameters>();
@@ -174,9 +188,22 @@ impl DiscoveryAdapter for AvahiAdapter {
 
                     break;
                 }
-                _ => {
-                    // println!("Default {:?}", a.event)
+                AvahiBrowserEvent::AVAHI_BROWSER_FAILURE => {
+                    let error_code = unsafe { avahi_client_errno(self.client.get().unwrap()) };
+
+                    if error_code != 0 {
+                        let error_string = AvahiUtils::to_owned_string(unsafe {
+                            avahi_strerror(error_code)
+                        });
+
+                        error!("Service browser failed: {} (code {:?})",
+                               error_string.unwrap(),
+                               error_code);
+                    } else {
+                        error!("Service browser failed because of unknown reason.");
+                    }
                 }
+                _ => {}
             }
         }
 
@@ -185,6 +212,8 @@ impl DiscoveryAdapter for AvahiAdapter {
     }
 
     fn resolve(&self, service: ServiceInfo, listeners: ResolveListeners) {
+        debug!("Resolution is requested for service: {:?}.", service);
+
         let (tx, rx) = mpsc::channel::<ResolveCallbackParameters>();
 
         let avahi_service_resolver = unsafe {
@@ -214,6 +243,8 @@ impl DiscoveryAdapter for AvahiAdapter {
             type_name: raw_service.service_type,
         };
 
+        debug!("Service is resolved: {:?}.", service);
+
         if listeners.on_service_resolved.is_some() {
             (*listeners.on_service_resolved.unwrap())(service);
         }
@@ -238,27 +269,41 @@ impl DiscoveryAdapter for AvahiAdapter {
 
 impl HostAdapter for AvahiAdapter {
     fn get_name(&self) -> String {
+        debug!("Host name is requested.");
+
         self.initialize();
 
         let host_name_ptr = unsafe { avahi_client_get_host_name(self.client.get().unwrap()) };
+        let host_name = AvahiUtils::to_owned_string(host_name_ptr).unwrap();
 
-        AvahiUtils::to_owned_string(host_name_ptr).unwrap()
+        debug!("Host name is {}.", host_name);
+
+        host_name
     }
 
     fn get_name_fqdn(&self) -> String {
+        debug!("Host name FQDN is requested.");
+
         self.initialize();
 
         let host_name_fqdn_ptr = unsafe {
             avahi_client_get_host_name_fqdn(self.client.get().unwrap())
         };
 
-        AvahiUtils::to_owned_string(host_name_fqdn_ptr).unwrap()
+        let host_name_fqdn = AvahiUtils::to_owned_string(host_name_fqdn_ptr).unwrap();
+
+        debug!("Host name FQDN is {}.", host_name_fqdn);
+
+        host_name_fqdn
     }
 
     fn set_name(&self, host_name: &str) -> String {
+        debug!("Host name change (-> {}) is requested.", host_name);
+
         self.initialize();
 
         if host_name == self.get_name() {
+            debug!("No need to change name, name is already set.");
             return host_name.to_owned();
         }
 
@@ -275,6 +320,8 @@ impl HostAdapter for AvahiAdapter {
                    result_code);
         }
 
+        debug!("Host name change request is issued, waiting for response.");
+
         // HACK: Waiting until host name is upgraded, to know for sure what name is assigned.
         // Name can differ from the one we set because of possible collisions.
         // We should wait for the moment when client starts upgrading and only then wait for the
@@ -282,6 +329,7 @@ impl HostAdapter for AvahiAdapter {
         let mut registering_triggered = false;
         loop {
             let state = unsafe { avahi_client_get_state(client) };
+
             match state {
                 AvahiClientState::AVAHI_CLIENT_S_REGISTERING => {
                     registering_triggered = true;
@@ -295,6 +343,8 @@ impl HostAdapter for AvahiAdapter {
             }
         }
 
+        debug!("Host name is successfully updated.");
+
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(host_name) };
 
@@ -302,14 +352,18 @@ impl HostAdapter for AvahiAdapter {
     }
 
     fn is_valid_name(&self, host_name: &str) -> bool {
+        debug!("Host name {:?} validation is requested.", host_name);
+
         let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
-        let is_valid = unsafe { avahi_is_valid_host_name(host_name) };
+        let is_valid = unsafe { avahi_is_valid_host_name(host_name) } == 1;
+
+        debug!("Host name is valid: {:?}.", is_valid);
 
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(host_name) };
 
-        is_valid == 1
+        is_valid
     }
 
     fn get_alternative_name(&self, host_name: &str) -> String {

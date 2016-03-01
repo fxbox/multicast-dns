@@ -92,13 +92,25 @@ extern "C" {
 
     pub fn avahi_client_set_host_name(client: *mut AvahiClient, name: *const c_char) -> c_int;
 
-    pub fn avahi_is_valid_host_name(host_name: *const c_char) -> c_int;
-
-    pub fn avahi_alternative_host_name(host_name: *const c_char) -> *const c_char;
-
     pub fn avahi_client_get_host_name_fqdn(client: *mut AvahiClient) -> *const c_char;
 
     pub fn avahi_client_get_state(client: *mut AvahiClient) -> AvahiClientState;
+
+    /// Get the last error number.
+    /// See avahi_strerror() for converting this error code into a human readable string.
+    ///
+    /// # Arguments
+    ///
+    /// * `client` - Active `AvahiClient` instance.
+    ///
+    /// # Return value
+    ///
+    /// Non-zero error code if any.
+    pub fn avahi_client_errno(client: *mut AvahiClient) -> c_int;
+
+    pub fn avahi_is_valid_host_name(host_name: *const c_char) -> c_int;
+
+    pub fn avahi_alternative_host_name(host_name: *const c_char) -> *const c_char;
 
     /// Browse for domains on the local network.
     ///

@@ -64,7 +64,7 @@ impl HostAdapter for FakeAdapter {
 
     fn is_valid_name(&self, host_name: &str) -> bool {
         FakeAdapter::print_warning();
-        println!("Verifying host name: {}", host_name);
+        debug!("Verifying host name: {}.", host_name);
         true
     }
 
@@ -80,7 +80,7 @@ impl HostAdapter for FakeAdapter {
 
 impl Drop for FakeAdapter {
     fn drop(&mut self) {
-        println!("There is no need to do anything, just letting you know that I'm being dropped!");
+        debug!("There is no need to do anything, just letting you know that I'm being dropped!");
     }
 }
 
