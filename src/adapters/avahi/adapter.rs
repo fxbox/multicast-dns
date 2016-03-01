@@ -42,7 +42,7 @@ fn name_fqdn_to_cname_rdata(name_fqdn: &str) -> Vec<u8> {
         rdata.push(part.len() as u8);
         rdata.extend_from_slice(part.as_bytes());
     }
-    
+
     // Push NULL byte.
     rdata.push(0);
 
@@ -366,8 +366,6 @@ impl HostAdapter for AvahiAdapter {
             panic!("Failed to add new entry group record: {} (code {:?})",
                    error_string.unwrap(),
                    result_code);
-        } else {
-            println!("Record successfully added");
         }
 
         let result_code = unsafe { avahi_entry_group_commit(entry_group) };
@@ -378,8 +376,6 @@ impl HostAdapter for AvahiAdapter {
             panic!("Failed to commit new entry group record: {} (code {:?})",
                    error_string.unwrap(),
                    result_code);
-        } else {
-            println!("Entry group successfully comitted");
         }
 
         // Reconstruct string to properly free up memory.
