@@ -1,3 +1,7 @@
+# Multicast DNS
+
+[![Build Status](https://travis-ci.org/fxbox/multicast-dns.svg?branch=master)](https://travis-ci.org/fxbox/multicast-dns)
+
 ```multicust_dns``` - is essentially a Rust wrapper around Avahi that internally uses AvahiDaemon to manage host name and browse services on the local network.
 
 Requires ```avahi-common```, ```avahi-client``` and ```dbus-1``` libs to compile sucessfully.
