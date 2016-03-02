@@ -73,8 +73,8 @@ impl HostAdapter for FakeAdapter {
         format!("{}-2", host_name)
     }
 
-    fn add_name_alias(&self, host_name: &str) -> String {
-        host_name.to_owned()
+    fn add_name_alias(&self, host_name: &str) {
+        warn!("Host name change request (-> {}) will be ignored.", host_name);
     }
 }
 
