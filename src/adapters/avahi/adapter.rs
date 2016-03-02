@@ -126,35 +126,33 @@ impl AvahiAdapter {
     }
 
     fn destroy(&self) {
-        debug!("Adapter is going to be destroyed.");
+        debug!("Avahi adapter is going to be dropped.");
 
         let client = self.client.get();
         if client.is_some() {
-            // This will remove service browser as well as resolver.
+            let avahi_poll = self.poll.get().unwrap();
+            let avahi_client = client.unwrap();
+
             unsafe {
-                let avahi_client = client.unwrap();
+                avahi_threaded_poll_stop(avahi_poll);
+                debug!("Avahi threaded poll has been stopped successfully.");
 
                 // Free memory from our custom userdata.
                 Box::from_raw((*avahi_client).userdata);
 
+                // This will remove service browser as well as resolver.
                 avahi_client_free(avahi_client);
-            }
+                debug!("Avahi client has been destroyed successfully.");
 
-            self.client.set(None);
-            self.service_browser.set(None);
-
-            debug!("Client instance is destroyed.");
-        }
-
-        let poll = self.poll.get();
-        if poll.is_some() {
-            unsafe {
-                avahi_threaded_poll_free(poll.unwrap());
+                avahi_threaded_poll_free(avahi_poll);
+                debug!("Avahi threaded poll has been destroyed successfully.");
             }
 
             self.poll.set(None);
+            self.client.set(None);
+            self.service_browser.set(None);
 
-            debug!("Poll instance is destroyed.");
+            debug!("Avahi adapter has been dropped successfully.");
         }
     }
 }
@@ -282,16 +280,16 @@ impl DiscoveryAdapter for AvahiAdapter {
     fn stop_discovery(&self) {
         let service_browser = self.service_browser.get();
         if service_browser.is_some() {
+            let avahi_service_browser = service_browser.unwrap();
             unsafe {
-                let avahi_service_browser = service_browser.unwrap();
-
                 // Free memory from our custom userdata.
                 Box::from_raw((*avahi_service_browser).userdata);
 
                 avahi_service_browser_free(avahi_service_browser);
+                debug!("Avahi service browser has been destroyed successfully.");
             }
-            self.service_browser.set(None);
 
+            self.service_browser.set(None);
             self.service_browser_channel.sender.send(None).unwrap();
         }
     }

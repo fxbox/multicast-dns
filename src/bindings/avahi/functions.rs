@@ -103,7 +103,7 @@ extern "C" {
     /// # Return value
     ///
     /// Non-zero error code if any.
-    pub fn avahi_client_errno(client: *mut AvahiClient) -> c_int;
+    pub fn avahi_client_errno(client: *const AvahiClient) -> c_int;
 
     pub fn avahi_is_valid_host_name(host_name: *const c_char) -> c_int;
 
