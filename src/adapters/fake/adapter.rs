@@ -15,7 +15,7 @@ impl DiscoveryAdapter for FakeAdapter {
                 interface: 1,
                 name: Some(format!("fake")),
                 port: 0,
-                protocol: 3,
+                protocol: ServiceProtocol::IPv4,
                 txt: None,
                 type_name: Some(service_type.to_string()),
             });
@@ -74,7 +74,8 @@ impl HostAdapter for FakeAdapter {
     }
 
     fn add_name_alias(&self, host_name: &str) {
-        warn!("Host name change request (-> {}) will be ignored.", host_name);
+        warn!("Host name change request (-> {}) will be ignored.",
+              host_name);
     }
 }
 
