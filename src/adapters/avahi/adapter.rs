@@ -1,6 +1,5 @@
 use std::cell::Cell;
 use std::ffi::CString;
-use std::mem;
 use std::ptr;
 use std::sync::mpsc;
 
@@ -13,10 +12,19 @@ use adapters::adapter::*;
 use adapters::avahi::utils::*;
 use adapters::avahi::callbacks::*;
 
+pub struct Channel<T> {
+    pub receiver: mpsc::Receiver<T>,
+    pub sender: mpsc::Sender<T>,
+}
+
 pub struct AvahiAdapter {
-    client: Cell<Option<*mut AvahiClient>>,
     poll: Cell<Option<*mut AvahiThreadedPoll>>,
+
+    client: Cell<Option<*mut AvahiClient>>,
+    client_channel: Channel<ClientCallbackParameters>,
+
     service_browser: Cell<Option<*mut AvahiServiceBrowser>>,
+    service_browser_channel: Channel<Option<BrowseCallbackParameters>>,
 }
 
 fn avahi_protocol_to_service_protocol(protocol: AvahiProtocol) -> ServiceProtocol {
@@ -59,11 +67,12 @@ impl AvahiAdapter {
     fn create_client(&self, poll: *mut AvahiPoll) {
         let mut client_error_code: i32 = 0;
 
+        let sender = Box::new(self.client_channel.sender.clone());
         let avahi_client = unsafe {
             avahi_client_new(poll,
                              AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
                              *Box::new(AvahiCallbacks::client_callback),
-                             ptr::null_mut(),
+                             Box::into_raw(sender) as *mut _ as *mut c_void,
                              &mut client_error_code)
         };
 
@@ -75,6 +84,12 @@ impl AvahiAdapter {
             });
 
             panic!("Failed to create avahi client: {}.", error_string.unwrap());
+        }
+
+        for message in self.client_channel.receiver.iter() {
+            if let AvahiClientState::AVAHI_CLIENT_S_RUNNING = message.state {
+                break;
+            }
         }
 
         self.client.set(Some(avahi_client));
@@ -117,7 +132,12 @@ impl AvahiAdapter {
         if client.is_some() {
             // This will remove service browser as well as resolver.
             unsafe {
-                avahi_client_free(client.unwrap());
+                let avahi_client = client.unwrap();
+
+                // Free memory from our custom userdata.
+                Box::from_raw((*avahi_client).userdata);
+
+                avahi_client_free(avahi_client);
             }
 
             self.client.set(None);
@@ -145,9 +165,8 @@ impl DiscoveryAdapter for AvahiAdapter {
 
         self.initialize();
 
-        let (tx, rx) = mpsc::channel::<BrowseCallbackParameters>();
-
         let service_type = AvahiUtils::to_c_string(service_type.to_owned()).into_raw();
+        let sender = Box::new(self.service_browser_channel.sender.clone());
 
         let avahi_service_browser = unsafe {
             avahi_service_browser_new(self.client.get().unwrap(),
@@ -157,24 +176,30 @@ impl DiscoveryAdapter for AvahiAdapter {
                                       ptr::null_mut(),
                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                       *Box::new(AvahiCallbacks::browse_callback),
-                                      mem::transmute(&tx.clone()))
+                                      Box::into_raw(sender) as *mut _ as *mut c_void)
         };
 
         self.service_browser.set(Some(avahi_service_browser));
 
-        for a in rx.iter() {
-            match a.event {
+        for message in self.service_browser_channel.receiver.iter() {
+            if message.is_none() {
+                break;
+            }
+
+            let parameters = message.unwrap();
+
+            match parameters.event {
                 AvahiBrowserEvent::AVAHI_BROWSER_NEW => {
                     let service = ServiceInfo {
                         address: None,
-                        domain: a.domain,
+                        domain: parameters.domain,
                         host_name: None,
-                        interface: a.interface,
-                        name: a.name,
+                        interface: parameters.interface,
+                        name: parameters.name,
                         port: 0,
-                        protocol: avahi_protocol_to_service_protocol(a.protocol),
+                        protocol: avahi_protocol_to_service_protocol(parameters.protocol),
                         txt: None,
-                        type_name: a.service_type,
+                        type_name: parameters.service_type,
                     };
 
                     if listeners.on_service_discovered.is_some() {
@@ -185,8 +210,6 @@ impl DiscoveryAdapter for AvahiAdapter {
                     if listeners.on_all_discovered.is_some() {
                         (*listeners.on_all_discovered.unwrap())();
                     }
-
-                    break;
                 }
                 AvahiBrowserEvent::AVAHI_BROWSER_FAILURE => {
                     let error_code = unsafe { avahi_client_errno(self.client.get().unwrap()) };
@@ -226,27 +249,29 @@ impl DiscoveryAdapter for AvahiAdapter {
                                        AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                        AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                        *Box::new(AvahiCallbacks::resolve_callback),
-                                       mem::transmute(&tx))
+                                       Box::into_raw(Box::new(tx)) as *mut _ as *mut c_void)
         };
 
-        let raw_service = rx.recv().unwrap();
+        for message in rx.iter() {
+            if let AvahiResolverEvent::AVAHI_RESOLVER_FOUND = message.event {
+                let service = ServiceInfo {
+                    address: message.address,
+                    domain: message.domain,
+                    host_name: message.host_name,
+                    interface: message.interface,
+                    name: message.name,
+                    port: message.port,
+                    protocol: avahi_protocol_to_service_protocol(message.protocol),
+                    txt: message.txt,
+                    type_name: message.service_type,
+                };
 
-        let service = ServiceInfo {
-            address: raw_service.address,
-            domain: raw_service.domain,
-            host_name: raw_service.host_name,
-            interface: raw_service.interface,
-            name: raw_service.name,
-            port: raw_service.port,
-            protocol: avahi_protocol_to_service_protocol(raw_service.protocol),
-            txt: raw_service.txt,
-            type_name: raw_service.service_type,
-        };
+                if listeners.on_service_resolved.is_some() {
+                    (*listeners.on_service_resolved.unwrap())(service);
+                }
 
-        debug!("Service is resolved: {:?}.", service);
-
-        if listeners.on_service_resolved.is_some() {
-            (*listeners.on_service_resolved.unwrap())(service);
+                break;
+            }
         }
 
         unsafe {
@@ -255,15 +280,20 @@ impl DiscoveryAdapter for AvahiAdapter {
     }
 
     fn stop_discovery(&self) {
-        self.destroy();
-        // TODO: service_browser_free hangs for some reason - need to look into it.
-        // let mut service_browser = self.service_browser.borrow_mut();
-        // if service_browser.is_some() {
-        //     unsafe {
-        //         avahi_service_browser_free(service_browser.unwrap());
-        //     }
-        //     *service_browser = None;
-        // }
+        let service_browser = self.service_browser.get();
+        if service_browser.is_some() {
+            unsafe {
+                let avahi_service_browser = service_browser.unwrap();
+
+                // Free memory from our custom userdata.
+                Box::from_raw((*avahi_service_browser).userdata);
+
+                avahi_service_browser_free(avahi_service_browser);
+            }
+            self.service_browser.set(None);
+
+            self.service_browser_channel.sender.send(None).unwrap();
+        }
     }
 }
 
@@ -320,26 +350,11 @@ impl HostAdapter for AvahiAdapter {
                    result_code);
         }
 
-        debug!("Host name change request is issued, waiting for response.");
+        debug!("Waiting for the name to be applied.");
 
-        // HACK: Waiting until host name is upgraded, to know for sure what name is assigned.
-        // Name can differ from the one we set because of possible collisions.
-        // We should wait for the moment when client starts upgrading and only then wait for the
-        // RUNNING state.
-        let mut registering_triggered = false;
-        loop {
-            let state = unsafe { avahi_client_get_state(client) };
-
-            match state {
-                AvahiClientState::AVAHI_CLIENT_S_REGISTERING => {
-                    registering_triggered = true;
-                }
-                AvahiClientState::AVAHI_CLIENT_S_RUNNING => {
-                    if registering_triggered {
-                        break;
-                    }
-                }
-                _ => {}
+        for message in self.client_channel.receiver.iter() {
+            if let AvahiClientState::AVAHI_CLIENT_S_RUNNING = message.state {
+                break;
             }
         }
 
@@ -445,10 +460,25 @@ impl Drop for AvahiAdapter {
 
 impl Adapter for AvahiAdapter {
     fn new() -> AvahiAdapter {
+        let (client_sender, client_receiver) = mpsc::channel::<ClientCallbackParameters>();
+
+        let (service_browser_sender, service_browser_receiver) =
+            mpsc::channel::<Option<BrowseCallbackParameters>>();
+
         AvahiAdapter {
-            client: Cell::new(None),
             poll: Cell::new(None),
+
+            client: Cell::new(None),
+            client_channel: Channel {
+                receiver: client_receiver,
+                sender: client_sender,
+            },
+
             service_browser: Cell::new(None),
+            service_browser_channel: Channel {
+                receiver: service_browser_receiver,
+                sender: service_browser_sender,
+            },
         }
     }
 }

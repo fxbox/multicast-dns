@@ -1,6 +1,5 @@
 use libc::{c_char, c_int, c_void};
 
-use std::mem;
 use std::sync::mpsc;
 
 use bindings::avahi::*;
@@ -8,6 +7,11 @@ use bindings::avahi::*;
 use adapters::avahi::utils::*;
 
 pub struct AvahiCallbacks;
+
+#[derive(Debug)]
+pub struct ClientCallbackParameters {
+    pub state: AvahiClientState,
+}
 
 #[derive(Debug)]
 pub struct BrowseCallbackParameters {
@@ -37,14 +41,25 @@ pub struct ResolveCallbackParameters {
 
 impl AvahiCallbacks {
     #[allow(unused_variables)]
-    pub extern "C" fn client_callback(s: *mut AvahiClient,
+    pub extern "C" fn client_callback(client: *const AvahiClient,
                                       state: AvahiClientState,
-                                      userdata: *mut c_void) {
-        debug!("Client state has changed to {:?}.", state);
+                                      userdata: *const c_void) {
+        let parameters = ClientCallbackParameters { state: state };
+
+        debug!("Client state has changed: {:?}.", parameters);
+
+        let sender: Box<mpsc::Sender<ClientCallbackParameters>> = unsafe {
+            Box::from_raw(userdata as *mut _)
+        };
+
+        sender.send(parameters).unwrap();
+
+        // Leak pointer to the sender so that it can be reused later.
+        Box::into_raw(sender);
     }
 
     #[allow(unused_variables)]
-    pub extern "C" fn browse_callback(service_browser: *mut AvahiServiceBrowser,
+    pub extern "C" fn browse_callback(service_browser: *const AvahiServiceBrowser,
                                       interface: c_int,
                                       protocol: AvahiProtocol,
                                       event: AvahiBrowserEvent,
@@ -52,7 +67,7 @@ impl AvahiCallbacks {
                                       service_type: *const c_char,
                                       domain: *const c_char,
                                       flags: AvahiLookupResultFlags,
-                                      userdata: *mut c_void) {
+                                      userdata: *const c_void) {
 
         let parameters = BrowseCallbackParameters {
             event: event,
@@ -66,12 +81,18 @@ impl AvahiCallbacks {
 
         debug!("Service state has changed: {:?}.", parameters);
 
-        let sender: &mpsc::Sender<BrowseCallbackParameters> = unsafe { mem::transmute(userdata) };
-        sender.send(parameters).unwrap();
+        let sender: Box<mpsc::Sender<Option<BrowseCallbackParameters>>> = unsafe {
+            Box::from_raw(userdata as *mut _)
+        };
+
+        sender.send(Some(parameters)).unwrap();
+
+        // Leak pointer to the sender so that it can be reused later.
+        Box::into_raw(sender);
     }
 
     #[allow(unused_variables)]
-    pub extern "C" fn resolve_callback(r: *mut AvahiServiceResolver,
+    pub extern "C" fn resolve_callback(r: *const AvahiServiceResolver,
                                        interface: c_int,
                                        protocol: AvahiProtocol,
                                        event: AvahiResolverEvent,
@@ -83,7 +104,7 @@ impl AvahiCallbacks {
                                        port: u16,
                                        txt: *mut AvahiStringList,
                                        flags: AvahiLookupResultFlags,
-                                       userdata: *mut c_void) {
+                                       userdata: *const c_void) {
         let parameters = ResolveCallbackParameters {
             event: event,
             address: AvahiUtils::parse_address(address),
@@ -100,14 +121,17 @@ impl AvahiCallbacks {
 
         debug!("Service resolution state has changed: {:?}.", parameters);
 
-        let sender: &mpsc::Sender<ResolveCallbackParameters> = unsafe { mem::transmute(userdata) };
+        let sender: Box<mpsc::Sender<ResolveCallbackParameters>> = unsafe {
+            Box::from_raw(userdata as *mut _)
+        };
+
         sender.send(parameters).unwrap();
     }
 
     #[allow(unused_variables)]
-    pub extern "C" fn entry_group_callback(group: *mut AvahiEntryGroup,
+    pub extern "C" fn entry_group_callback(group: *const AvahiEntryGroup,
                                            state: AvahiEntryGroupState,
-                                           userdata: *mut c_void) {
+                                           userdata: *const c_void) {
         debug!("Entry group state has changed to {:?}.", state);
     }
 }

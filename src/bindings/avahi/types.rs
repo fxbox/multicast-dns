@@ -22,7 +22,12 @@ pub struct AvahiEntryGroup;
 pub struct AvahiDomainBrowser;
 
 #[repr(C)]
-pub struct AvahiServiceBrowser;
+pub struct AvahiServiceBrowser {
+    path: *const c_char,
+    client: *const AvahiClient,
+    callback: ServiceBrowserCallback,
+    pub userdata: *mut c_void,
+}
 
 #[repr(C)]
 pub struct AvahiServiceTypeBrowser;
@@ -58,8 +63,8 @@ pub struct AvahiClient {
     domain_name: *const c_char,
     local_service_cookie: u32,
     local_service_cookie_valid: u16,
-    callback: extern "C" fn(*const AvahiClient, AvahiClientState, *const c_void),
-    userdata: *const c_void,
+    callback: ClientCallback,
+    pub userdata: *mut c_void,
     groups: *const AvahiEntryGroup,
     domain_browsers: *const AvahiDomainBrowser,
     service_browsers: *const AvahiServiceBrowser,
@@ -70,8 +75,9 @@ pub struct AvahiClient {
     record_browsers: *const AvahiRecordBrowser,
 }
 
+pub type ClientCallback = extern "C" fn(*const AvahiClient, AvahiClientState, *const c_void);
 
-pub type ServiceBrowserCallback = extern "C" fn(*mut AvahiServiceBrowser,
+pub type ServiceBrowserCallback = extern "C" fn(*const AvahiServiceBrowser,
                                                 c_int,
                                                 AvahiProtocol,
                                                 AvahiBrowserEvent,
@@ -79,10 +85,10 @@ pub type ServiceBrowserCallback = extern "C" fn(*mut AvahiServiceBrowser,
                                                 *const c_char,
                                                 *const c_char,
                                                 AvahiLookupResultFlags,
-                                                *mut c_void)
+                                                *const c_void)
                                                ;
 
-pub type ServiceResolverCallback = extern "C" fn(*mut AvahiServiceResolver,
+pub type ServiceResolverCallback = extern "C" fn(*const AvahiServiceResolver,
                                                  c_int,
                                                  AvahiProtocol,
                                                  AvahiResolverEvent,
@@ -94,12 +100,12 @@ pub type ServiceResolverCallback = extern "C" fn(*mut AvahiServiceResolver,
                                                  u16,
                                                  *mut AvahiStringList,
                                                  AvahiLookupResultFlags,
-                                                 *mut c_void)
+                                                 *const c_void)
                                                 ;
 
-pub type AvahiEntryGroupCallback = extern "C" fn(*mut AvahiEntryGroup,
+pub type AvahiEntryGroupCallback = extern "C" fn(*const AvahiEntryGroup,
                                                  AvahiEntryGroupState,
-                                                 *mut c_void)
+                                                 *const c_void)
                                                 ;
 
 pub static AVAHI_ADDRESS_STR_MAX: usize = 4 * 8 + 7 + 1; // 1 is for NUL

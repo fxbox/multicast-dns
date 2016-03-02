@@ -70,10 +70,7 @@ extern "C" {
     /// New client instance - `AvahiClient`.
     pub fn avahi_client_new(poll_api: *const AvahiPoll,
                             flags: AvahiClientFlags,
-                            callback: extern "C" fn(*mut AvahiClient,
-                                                    AvahiClientState,
-                                                    *mut c_void)
-                                                   ,
+                            callback: ClientCallback,
                             userdata: *mut c_void,
                             error: *mut c_int)
                             -> *mut AvahiClient;
