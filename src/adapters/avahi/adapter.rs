@@ -298,8 +298,6 @@ impl HostAdapter for AvahiAdapter {
 
         AvahiUtils::to_owned_string(host_name_ptr)
             .ok_or(AdapterError::Internal("Name is not available".to_owned()))
-
-        Ok(host_name)
     }
 
     fn get_name_fqdn(&self) -> Result<String, AdapterError> {

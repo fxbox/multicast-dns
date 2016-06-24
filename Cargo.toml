@@ -1,8 +1,8 @@
 [package]
 name = "multicast_dns"
-version = "0.1.1"
+version = "0.2.0"
 authors = ["Aleh Zasypkin <azasypkin@mozilla.com>"]
 
 [dependencies]
-libc = "0.2.11"
+libc = "0.2.12"
 log = "0.3.6"
