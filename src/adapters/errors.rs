@@ -1,8 +1,6 @@
 use std::error::Error as StdError;
 use std::fmt;
 
-use adapters::avahi::errors::Error as AvahiError;
-
 #[derive(Debug)]
 pub enum Error {
     AdapterFailure(String),
@@ -31,9 +29,11 @@ impl StdError for Error {
     }
 }
 
-
-impl From<AvahiError> for Error {
-    fn from(err: AvahiError) -> Error {
+#[cfg(target_os = "linux")]
+use adapters::avahi;
+#[cfg(target_os = "linux")]
+impl From<avahi::errors::Error> for Error {
+    fn from(err: avahi::errors::Error) -> Error {
         Error::AdapterFailure(format!("Avahi - {}", err.description()))
     }
 }
