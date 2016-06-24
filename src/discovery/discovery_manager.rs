@@ -1,5 +1,6 @@
 use adapters::adapter::Adapter;
 use adapters::adapter::DiscoveryAdapter;
+use adapters::errors::Error;
 use adapters::PlatformDependentAdapter;
 
 #[derive(Debug)]
@@ -42,8 +43,9 @@ impl DiscoveryManager {
         DiscoveryManager { adapter: adapter }
     }
 
-    pub fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners) {
-        self.adapter.start_discovery(service_type, listeners);
+    pub fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners)
+        -> Result<(), Error> {
+        self.adapter.start_discovery(service_type, listeners)
     }
 
     pub fn resolve_service(&self, service: ServiceInfo, listeners: ResolveListeners) {

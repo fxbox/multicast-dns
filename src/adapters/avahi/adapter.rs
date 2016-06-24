@@ -11,6 +11,8 @@ use discovery::discovery_manager::*;
 use adapters::adapter::*;
 use adapters::avahi::utils::*;
 use adapters::avahi::callbacks::*;
+use adapters::avahi::errors::Error as AvahiError;
+use adapters::errors::Error as AdapterError;
 
 pub struct Channel<T> {
     pub receiver: mpsc::Receiver<T>,
@@ -59,12 +61,12 @@ fn name_fqdn_to_cname_rdata(name_fqdn: &str) -> Vec<u8> {
 
 impl AvahiAdapter {
     /// Creates `AvahiClient` instance for the provided `AvahiPoll` object. If there
-    /// was an error while creating client, this method will `panic!`
+    /// was an error while creating client, corresponding error will be returned.
     ///
     /// # Arguments
     ///
     /// * `poll` - Abstracted `AvahiPoll` object that we'd like to create client for.
-    fn create_client(&self, poll: *mut AvahiPoll) {
+    fn create_client(&self, poll: *mut AvahiPoll) -> Result<(), AvahiError> {
         let mut client_error_code: i32 = 0;
 
         let sender = Box::new(self.client_channel.sender.clone());
@@ -78,12 +80,8 @@ impl AvahiAdapter {
 
         // Check that we've created client successfully, otherwise try to resolve error
         // into human-readable string.
-        if avahi_client.is_null() {
-            let error_string = AvahiUtils::to_owned_string(unsafe {
-                avahi_strerror(client_error_code)
-            });
-
-            panic!("Failed to create avahi client: {}.", error_string.unwrap());
+        if client_error_code != 0 || avahi_client.is_null() {
+            return Err(AvahiError::fromErrorCode(client_error_code));
         }
 
         for message in self.client_channel.receiver.iter() {
@@ -95,13 +93,14 @@ impl AvahiAdapter {
         self.client.set(Some(avahi_client));
 
         debug!("Client is created.");
+        Ok(())
     }
 
     /// Initializes `AvahiClient` and `AvahiPoll` objects and runs polling. If client
     /// has been already initialized, this method does nothing.
-    fn initialize(&self) {
+    fn initialize(&self) -> Result<(), AvahiError> {
         if self.client.get().is_some() {
-            return;
+            return Ok(());
         }
 
         debug!("New client initialization is requested.");
@@ -115,14 +114,16 @@ impl AvahiAdapter {
 
         debug!("Threaded poll is created.");
 
-        self.create_client(abstracted_poll);
+        try!(self.create_client(abstracted_poll));
 
         let result_code = unsafe { avahi_threaded_poll_start(threaded_poll) };
-        if result_code == -1 {
-            panic!("Avahi threaded poll could not be started!");
+        if result_code != 0 {
+            return Err(AvahiError::fromErrorCode(result_code));
         }
 
         self.poll.set(Some(threaded_poll));
+
+        Ok(())
     }
 
     fn destroy(&self) {
@@ -158,10 +159,11 @@ impl AvahiAdapter {
 }
 
 impl DiscoveryAdapter for AvahiAdapter {
-    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners) {
+    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners)
+        -> Result<(), AdapterError>{
         debug!("Discovery started for the service: {}.", service_type);
 
-        self.initialize();
+        try!(self.initialize());
 
         let service_type = AvahiUtils::to_c_string(service_type.to_owned()).into_raw();
         let sender = Box::new(self.service_browser_channel.sender.clone());
@@ -211,18 +213,7 @@ impl DiscoveryAdapter for AvahiAdapter {
                 }
                 AvahiBrowserEvent::AVAHI_BROWSER_FAILURE => {
                     let error_code = unsafe { avahi_client_errno(self.client.get().unwrap()) };
-
-                    if error_code != 0 {
-                        let error_string = AvahiUtils::to_owned_string(unsafe {
-                            avahi_strerror(error_code)
-                        });
-
-                        error!("Service browser failed: {} (code {:?})",
-                               error_string.unwrap(),
-                               error_code);
-                    } else {
-                        error!("Service browser failed because of unknown reason.");
-                    }
+                    error!("Service browser failed: {}", AvahiError::fromErrorCode(error_code));
                 }
                 _ => {}
             }
@@ -230,6 +221,8 @@ impl DiscoveryAdapter for AvahiAdapter {
 
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(service_type) };
+
+        Ok(())
     }
 
     fn resolve(&self, service: ServiceInfo, listeners: ResolveListeners) {
@@ -296,56 +289,49 @@ impl DiscoveryAdapter for AvahiAdapter {
 }
 
 impl HostAdapter for AvahiAdapter {
-    fn get_name(&self) -> String {
+    fn get_name(&self) -> Result<String, AdapterError> {
         debug!("Host name is requested.");
 
-        self.initialize();
+        try!(self.initialize());
 
         let host_name_ptr = unsafe { avahi_client_get_host_name(self.client.get().unwrap()) };
-        let host_name = AvahiUtils::to_owned_string(host_name_ptr).unwrap();
 
-        debug!("Host name is {}.", host_name);
+        AvahiUtils::to_owned_string(host_name_ptr)
+            .ok_or(AdapterError::Internal("Name is not available".to_owned()))
 
-        host_name
+        Ok(host_name)
     }
 
-    fn get_name_fqdn(&self) -> String {
+    fn get_name_fqdn(&self) -> Result<String, AdapterError> {
         debug!("Host name FQDN is requested.");
 
-        self.initialize();
+        try!(self.initialize());
 
         let host_name_fqdn_ptr = unsafe {
             avahi_client_get_host_name_fqdn(self.client.get().unwrap())
         };
 
-        let host_name_fqdn = AvahiUtils::to_owned_string(host_name_fqdn_ptr).unwrap();
-
-        debug!("Host name FQDN is {}.", host_name_fqdn);
-
-        host_name_fqdn
+        AvahiUtils::to_owned_string(host_name_fqdn_ptr)
+            .ok_or(AdapterError::Internal("Name is not available".to_owned()))
     }
 
-    fn set_name(&self, host_name: &str) -> String {
+    fn set_name(&self, host_name: &str) -> Result<String, AdapterError> {
         debug!("Host name change (-> {}) is requested.", host_name);
 
-        self.initialize();
+        try!(self.initialize());
+        let current_host_name = try!(self.get_name());
 
-        if host_name == self.get_name() {
+        if host_name == current_host_name {
             debug!("No need to change name, name is already set.");
-            return host_name.to_owned();
+            return Ok(host_name.to_owned());
         }
 
         let client = self.client.get().unwrap();
         let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
         let result_code = unsafe { avahi_client_set_host_name(client, host_name) };
-
         if result_code != 0 {
-            let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
-
-            panic!("Failed set host name: {} (code {:?})",
-                   error_string.unwrap(),
-                   result_code);
+            return Err(From::from(AvahiError::fromErrorCode(result_code)));
         }
 
         debug!("Waiting for the name to be applied.");
@@ -364,7 +350,7 @@ impl HostAdapter for AvahiAdapter {
         self.get_name()
     }
 
-    fn is_valid_name(&self, host_name: &str) -> bool {
+    fn is_valid_name(&self, host_name: &str) -> Result<bool, AdapterError> {
         debug!("Host name {:?} validation is requested.", host_name);
 
         let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
@@ -376,10 +362,10 @@ impl HostAdapter for AvahiAdapter {
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(host_name) };
 
-        is_valid
+        Ok(is_valid)
     }
 
-    fn get_alternative_name(&self, host_name: &str) -> String {
+    fn get_alternative_name(&self, host_name: &str) -> Result<String, AdapterError> {
         let original_host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
         let alternative_host_name_ptr = unsafe { avahi_alternative_host_name(original_host_name) };
@@ -391,14 +377,16 @@ impl HostAdapter for AvahiAdapter {
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(original_host_name) };
 
-        alternative_host_name.unwrap()
+        alternative_host_name
+            .ok_or(AdapterError::Internal("Name is not available".to_owned()))
     }
 
-    fn add_name_alias(&self, host_name: &str) {
-        self.initialize();
+    fn add_name_alias(&self, host_name: &str) -> Result<(), AdapterError> {
+        try!(self.initialize());
 
-        if host_name == self.get_name() {
-            return;
+        let current_host_name = try!(self.get_name());
+        if host_name == current_host_name {
+            return Ok(());
         }
 
         let client = self.client.get().unwrap();
@@ -409,7 +397,7 @@ impl HostAdapter for AvahiAdapter {
                                   ptr::null_mut())
         };
 
-        let rdata = &name_fqdn_to_cname_rdata(&self.get_name_fqdn());
+        let rdata = &name_fqdn_to_cname_rdata(&try!(self.get_name_fqdn()));
 
         let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
@@ -426,27 +414,23 @@ impl HostAdapter for AvahiAdapter {
                                          rdata.len())
         };
 
-
         if result_code != 0 {
-            let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
-
-            panic!("Failed to add new entry group record: {} (code {:?})",
-                   error_string.unwrap(),
-                   result_code);
+            let error = AvahiError::fromErrorCode(result_code);
+            error!("Failed to add new entry group record: {}", error);
+            return Err(From::from(error));
         }
 
         let result_code = unsafe { avahi_entry_group_commit(entry_group) };
-
         if result_code != 0 {
-            let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(result_code) });
-
-            panic!("Failed to commit new entry group record: {} (code {:?})",
-                   error_string.unwrap(),
-                   result_code);
+            let error = AvahiError::fromErrorCode(result_code);
+            error!("Failed to commit new entry group record: {}", error);
+            return Err(From::from(error));
         }
 
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(host_name) };
+
+        Ok(())
     }
 }
 

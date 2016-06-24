@@ -9,3 +9,4 @@ mod bindings;
 
 pub mod discovery;
 pub mod host;
+pub use adapters::errors;

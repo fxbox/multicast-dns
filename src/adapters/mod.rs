@@ -11,3 +11,4 @@ mod fake;
 pub use adapters::fake::FakeAdapter as PlatformDependentAdapter;
 
 pub mod adapter;
+pub mod errors;

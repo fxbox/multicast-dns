@@ -1,10 +1,12 @@
 use adapters::adapter::*;
 use discovery::discovery_manager::*;
+use adapters::errors::Error;
 
 pub struct FakeAdapter;
 
 impl DiscoveryAdapter for FakeAdapter {
-    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners) {
+    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners)
+        -> Result<(), Error> {
         FakeAdapter::print_warning();
 
         if listeners.on_service_discovered.is_some() {
@@ -24,6 +26,8 @@ impl DiscoveryAdapter for FakeAdapter {
         if listeners.on_all_discovered.is_some() {
             (*listeners.on_all_discovered.unwrap())();
         }
+
+        Ok(())
     }
 
     fn resolve(&self, service: ServiceInfo, listeners: ResolveListeners) {
@@ -48,34 +52,35 @@ impl DiscoveryAdapter for FakeAdapter {
 }
 
 impl HostAdapter for FakeAdapter {
-    fn get_name(&self) -> String {
+    fn get_name(&self) -> Result<String, Error> {
         FakeAdapter::print_warning();
-        return "fake".to_owned();
+        return Ok("fake".to_owned());
     }
 
-    fn get_name_fqdn(&self) -> String {
-        return "fake.local".to_owned();
+    fn get_name_fqdn(&self) -> Result<String, Error> {
+        return Ok("fake.local".to_owned());
     }
 
-    fn set_name(&self, host_name: &str) -> String {
+    fn set_name(&self, host_name: &str) -> Result<String, Error> {
         FakeAdapter::print_warning();
-        host_name.to_owned()
+        Ok(host_name.to_owned())
     }
 
-    fn is_valid_name(&self, host_name: &str) -> bool {
+    fn is_valid_name(&self, host_name: &str) -> Result<bool, Error> {
         FakeAdapter::print_warning();
         debug!("Verifying host name: {}.", host_name);
-        true
+        Ok(true)
     }
 
-    fn get_alternative_name(&self, host_name: &str) -> String {
+    fn get_alternative_name(&self, host_name: &str) -> Result<String, Error> {
         FakeAdapter::print_warning();
-        format!("{}-2", host_name)
+        Ok(format!("{}-2", host_name))
     }
 
-    fn add_name_alias(&self, host_name: &str) {
+    fn add_name_alias(&self, host_name: &str) -> Result<(), Error> {
         warn!("Host name change request (-> {}) will be ignored.",
               host_name);
+        Ok(())
     }
 }
 
