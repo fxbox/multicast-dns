@@ -1,7 +1,7 @@
 sudo: required
 language: rust
 rust:
-  - nightly-2016-06-16
+  - nightly
 
 cache:
   directories:
