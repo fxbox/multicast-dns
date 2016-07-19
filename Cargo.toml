@@ -4,5 +4,5 @@ version = "0.2.0"
 authors = ["Aleh Zasypkin <azasypkin@mozilla.com>"]
 
 [dependencies]
-libc = "0.2.13"
+libc = "0.2.14"
 log = "0.3.6"
