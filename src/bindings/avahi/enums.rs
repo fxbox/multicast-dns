@@ -1,16 +1,16 @@
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 pub enum AvahiClientFlags {
-    /// Don't read user configuration. 
+    /// Don't read user configuration.
     AVAHI_CLIENT_IGNORE_USER_CONFIG,
 
     /// Don't fail if the daemon is not available when avahi_client_new() is called,
-    /// instead enter AVAHI_CLIENT_CONNECTING state and wait for the daemon to appear. 
+    /// instead enter AVAHI_CLIENT_CONNECTING state and wait for the daemon to appear.
     AVAHI_CLIENT_NO_FAIL,
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 #[derive(Debug)]
 pub enum AvahiClientState {
     AVAHI_CLIENT_S_REGISTERING = 1,
@@ -21,7 +21,7 @@ pub enum AvahiClientState {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 pub enum AvahiLookupFlags {
     AVAHI_LOOKUP_UNSPEC = 0,
     /// When doing service resolving, don't lookup TXT record.
@@ -32,7 +32,7 @@ pub enum AvahiLookupFlags {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 #[derive(Debug)]
 pub enum AvahiLookupResultFlags {
     AVAHI_LOOKUP_RESULT_CACHED,
@@ -45,7 +45,7 @@ pub enum AvahiLookupResultFlags {
 
 #[repr(C)]
 #[derive(Debug)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 pub enum AvahiBrowserEvent {
     AVAHI_BROWSER_NEW,
     AVAHI_BROWSER_REMOVE,
@@ -56,7 +56,7 @@ pub enum AvahiBrowserEvent {
 
 #[repr(C)]
 #[derive(Debug)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 pub enum AvahiProtocol {
     /// IPv4.
     AVAHI_PROTO_INET = 0,
@@ -69,7 +69,7 @@ pub enum AvahiProtocol {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 pub enum AvahiIfIndex {
     /// Dummy variant to overcome [E0083].
     DUMMY = 0,
@@ -78,7 +78,7 @@ pub enum AvahiIfIndex {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 #[derive(Debug)]
 pub enum AvahiResolverEvent {
     AVAHI_RESOLVER_FOUND,
@@ -86,7 +86,7 @@ pub enum AvahiResolverEvent {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 pub enum AvahiDomainBrowserType {
     /// Browse for a list of available browsing domains.
     AVAHI_DOMAIN_BROWSER_BROWSE,
@@ -107,7 +107,7 @@ pub enum AvahiDomainBrowserType {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 #[derive(Debug)]
 pub enum AvahiEntryGroupState {
     AVAHI_ENTRY_GROUP_UNCOMMITED,
@@ -118,7 +118,7 @@ pub enum AvahiEntryGroupState {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 #[derive(Debug)]
 pub enum AvahiPublishFlags {
     AVAHI_PUBLISH_UNIQUE = 1,
@@ -133,13 +133,14 @@ pub enum AvahiPublishFlags {
 }
 
 #[repr(C)]
+#[allow(dead_code, non_camel_case_types)]
 #[derive(Debug)]
 pub enum AvahiRecordClass {
     AVAHI_IN = 1,
 }
 
 #[repr(C)]
-#[allow(dead_code)]
+#[allow(dead_code, non_camel_case_types)]
 #[derive(Debug)]
 pub enum AvahiRecordType {
     AVAHI_A = 1,

@@ -81,7 +81,7 @@ impl AvahiAdapter {
         // Check that we've created client successfully, otherwise try to resolve error
         // into human-readable string.
         if client_error_code != 0 || avahi_client.is_null() {
-            return Err(AvahiError::fromErrorCode(client_error_code));
+            return Err(AvahiError::from_error_code(client_error_code));
         }
 
         for message in self.client_channel.receiver.iter() {
@@ -118,7 +118,7 @@ impl AvahiAdapter {
 
         let result_code = unsafe { avahi_threaded_poll_start(threaded_poll) };
         if result_code != 0 {
-            return Err(AvahiError::fromErrorCode(result_code));
+            return Err(AvahiError::from_error_code(result_code));
         }
 
         self.poll.set(Some(threaded_poll));
@@ -213,7 +213,7 @@ impl DiscoveryAdapter for AvahiAdapter {
                 }
                 AvahiBrowserEvent::AVAHI_BROWSER_FAILURE => {
                     let error_code = unsafe { avahi_client_errno(self.client.get().unwrap()) };
-                    error!("Service browser failed: {}", AvahiError::fromErrorCode(error_code));
+                    error!("Service browser failed: {}", AvahiError::from_error_code(error_code));
                 }
                 _ => {}
             }
@@ -234,9 +234,9 @@ impl DiscoveryAdapter for AvahiAdapter {
             avahi_service_resolver_new(self.client.get().unwrap(),
                                        service.interface,
                                        service_protocol_to_avahi_protocol(service.protocol),
-                                       CString::new(service.name.unwrap()).unwrap().as_ptr(),
-                                       CString::new(service.type_name.unwrap()).unwrap().as_ptr(),
-                                       CString::new(service.domain.unwrap()).unwrap().as_ptr(),
+                                       AvahiUtils::to_c_string(service.name.unwrap()).as_ptr(),
+                                       AvahiUtils::to_c_string(service.type_name.unwrap()).as_ptr(),
+                                       AvahiUtils::to_c_string(service.domain.unwrap()).as_ptr(),
                                        AvahiProtocol::AVAHI_PROTO_UNSPEC,
                                        AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
                                        *Box::new(AvahiCallbacks::resolve_callback),
@@ -329,7 +329,7 @@ impl HostAdapter for AvahiAdapter {
 
         let result_code = unsafe { avahi_client_set_host_name(client, host_name) };
         if result_code != 0 {
-            return Err(From::from(AvahiError::fromErrorCode(result_code)));
+            return Err(From::from(AvahiError::from_error_code(result_code)));
         }
 
         debug!("Waiting for the name to be applied.");
@@ -413,14 +413,14 @@ impl HostAdapter for AvahiAdapter {
         };
 
         if result_code != 0 {
-            let error = AvahiError::fromErrorCode(result_code);
+            let error = AvahiError::from_error_code(result_code);
             error!("Failed to add new entry group record: {}", error);
             return Err(From::from(error));
         }
 
         let result_code = unsafe { avahi_entry_group_commit(entry_group) };
         if result_code != 0 {
-            let error = AvahiError::fromErrorCode(result_code);
+            let error = AvahiError::from_error_code(result_code);
             error!("Failed to commit new entry group record: {}", error);
             return Err(From::from(error));
         }

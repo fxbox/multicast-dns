@@ -5,7 +5,7 @@ use libc::{c_void, c_int, c_char, size_t};
 #[link(name = "avahi-common")]
 #[link(name = "avahi-client")]
 #[link(name = "dbus-1")]
-#[allow(improper_ctypes)]
+#[allow(improper_ctypes, dead_code)]
 extern "C" {
     /// Create a new main loop object.
     ///
