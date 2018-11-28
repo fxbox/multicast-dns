@@ -2,8 +2,11 @@ use adapters::errors::Error;
 use discovery::discovery_manager::*;
 
 pub trait DiscoveryAdapter {
-    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners)
-        -> Result<(), Error>;
+    fn start_discovery(
+        &self,
+        service_type: &str,
+        listeners: DiscoveryListeners,
+    ) -> Result<(), Error>;
     fn resolve(&self, service: ServiceInfo, listeners: ResolveListeners);
     fn stop_discovery(&self);
 }
@@ -17,6 +20,8 @@ pub trait HostAdapter {
     fn add_name_alias(&self, host_name: &str) -> Result<(), Error>;
 }
 
-pub trait Adapter : DiscoveryAdapter + HostAdapter + Drop {
-    fn new() -> Self where Self: Sized;
+pub trait Adapter: DiscoveryAdapter + HostAdapter + Drop {
+    fn new() -> Self
+    where
+        Self: Sized;
 }

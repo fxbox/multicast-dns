@@ -1,12 +1,15 @@
 use adapters::adapter::*;
-use discovery::discovery_manager::*;
 use adapters::errors::Error;
+use discovery::discovery_manager::*;
 
 pub struct FakeAdapter;
 
 impl DiscoveryAdapter for FakeAdapter {
-    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners)
-        -> Result<(), Error> {
+    fn start_discovery(
+        &self,
+        service_type: &str,
+        listeners: DiscoveryListeners,
+    ) -> Result<(), Error> {
         FakeAdapter::print_warning();
 
         if listeners.on_service_discovered.is_some() {
@@ -78,8 +81,10 @@ impl HostAdapter for FakeAdapter {
     }
 
     fn add_name_alias(&self, host_name: &str) -> Result<(), Error> {
-        warn!("Host name change request (-> {}) will be ignored.",
-              host_name);
+        warn!(
+            "Host name change request (-> {}) will be ignored.",
+            host_name
+        );
         Ok(())
     }
 }
@@ -99,7 +104,9 @@ impl Adapter for FakeAdapter {
 
 impl FakeAdapter {
     fn print_warning() {
-        println!("WARNING: Your platform is not supported by real mDNS adapter, fake adapter is \
-                  used!");
+        println!(
+            "WARNING: Your platform is not supported by real mDNS adapter, fake adapter is \
+             used!"
+        );
     }
 }

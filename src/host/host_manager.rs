@@ -1,7 +1,7 @@
 use adapters::adapter::Adapter;
 use adapters::adapter::HostAdapter;
-use adapters::PlatformDependentAdapter;
 use adapters::errors::Error;
+use adapters::PlatformDependentAdapter;
 
 pub struct HostManager {
     adapter: Box<HostAdapter>,

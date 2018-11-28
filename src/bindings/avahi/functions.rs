@@ -1,6 +1,6 @@
-use super::types::*;
 use super::enums::*;
-use libc::{c_void, c_int, c_char, size_t};
+use super::types::*;
+use libc::{c_char, c_int, c_void, size_t};
 
 #[link(name = "avahi-common")]
 #[link(name = "avahi-client")]
@@ -68,13 +68,13 @@ extern "C" {
     /// # Return value
     ///
     /// New client instance - `AvahiClient`.
-    pub fn avahi_client_new(poll_api: *const AvahiPoll,
-                            flags: AvahiClientFlags,
-                            callback: ClientCallback,
-                            userdata: *mut c_void,
-                            error: *mut c_int)
-                            -> *mut AvahiClient;
-
+    pub fn avahi_client_new(
+        poll_api: *const AvahiPoll,
+        flags: AvahiClientFlags,
+        callback: ClientCallback,
+        userdata: *mut c_void,
+        error: *mut c_int,
+    ) -> *mut AvahiClient;
 
     /// Free a client instance.
     /// This will automatically free all associated browser, resolve and entry group objects.
@@ -127,15 +127,16 @@ extern "C" {
     /// # Return value
     ///
     /// A domain browser `AvahiServiceBrowser` object.
-    pub fn avahi_service_browser_new(client: *mut AvahiClient,
-                                     interface: AvahiIfIndex,
-                                     protocol: AvahiProtocol,
-                                     service_type: *const c_char,
-                                     domain: *const c_char,
-                                     flags: AvahiLookupFlags,
-                                     callback: ServiceBrowserCallback,
-                                     userdata: *mut c_void)
-                                     -> *mut AvahiServiceBrowser;
+    pub fn avahi_service_browser_new(
+        client: *mut AvahiClient,
+        interface: AvahiIfIndex,
+        protocol: AvahiProtocol,
+        service_type: *const c_char,
+        domain: *const c_char,
+        flags: AvahiLookupFlags,
+        callback: ServiceBrowserCallback,
+        userdata: *mut c_void,
+    ) -> *mut AvahiServiceBrowser;
 
     /// Cleans up and frees an `AvahiServiceBrowser` object.
     ///
@@ -178,17 +179,18 @@ extern "C" {
     /// # Return value
     ///
     /// A service resolver `AvahiServiceResolver` object.
-    pub fn avahi_service_resolver_new(client: *mut AvahiClient,
-                                      interface: c_int,
-                                      protocol: AvahiProtocol,
-                                      name: *const c_char,
-                                      service_type: *const c_char,
-                                      domain: *const c_char,
-                                      aprotocol: AvahiProtocol,
-                                      flags: AvahiLookupFlags,
-                                      callback: ServiceResolverCallback,
-                                      userdata: *mut c_void)
-                                      -> *mut AvahiServiceResolver;
+    pub fn avahi_service_resolver_new(
+        client: *mut AvahiClient,
+        interface: c_int,
+        protocol: AvahiProtocol,
+        name: *const c_char,
+        service_type: *const c_char,
+        domain: *const c_char,
+        aprotocol: AvahiProtocol,
+        flags: AvahiLookupFlags,
+        callback: ServiceResolverCallback,
+        userdata: *mut c_void,
+    ) -> *mut AvahiServiceResolver;
 
     pub fn avahi_service_resolver_free(resolver: *mut AvahiServiceResolver) -> c_int;
 
@@ -270,8 +272,6 @@ extern "C" {
 
     pub fn avahi_threaded_poll_quit(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
 
-
-
     /// Free an event loop object.
     ///
     /// This will stop the associated event loop thread (if it is running).
@@ -281,23 +281,24 @@ extern "C" {
     /// * `threaded_poll` - Main loop object returned from `avahi_threaded_poll_new`.
     pub fn avahi_threaded_poll_free(threaded_poll: *mut AvahiThreadedPoll) -> c_void;
 
-    pub fn avahi_entry_group_new(client: *mut AvahiClient,
-                                 callback: AvahiEntryGroupCallback,
-                                 userdata: *mut c_void)
-                                 -> *mut AvahiEntryGroup;
+    pub fn avahi_entry_group_new(
+        client: *mut AvahiClient,
+        callback: AvahiEntryGroupCallback,
+        userdata: *mut c_void,
+    ) -> *mut AvahiEntryGroup;
 
-
-    pub fn avahi_entry_group_add_record(group: *mut AvahiEntryGroup,
-                                        interface: c_int,
-                                        protocol: AvahiProtocol,
-                                        flags: AvahiPublishFlags,
-                                        name: *const c_char,
-                                        record_class: AvahiRecordClass,
-                                        record_type: AvahiRecordType,
-                                        ttl: u32,
-                                        rdata: *const c_void,
-                                        size: usize)
-                                        -> c_int;
+    pub fn avahi_entry_group_add_record(
+        group: *mut AvahiEntryGroup,
+        interface: c_int,
+        protocol: AvahiProtocol,
+        flags: AvahiPublishFlags,
+        name: *const c_char,
+        record_class: AvahiRecordClass,
+        record_type: AvahiRecordType,
+        ttl: u32,
+        rdata: *const c_void,
+        size: usize,
+    ) -> c_int;
 
     pub fn avahi_entry_group_commit(group: *mut AvahiEntryGroup) -> c_int;
 

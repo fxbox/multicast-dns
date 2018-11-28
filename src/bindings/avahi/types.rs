@@ -1,5 +1,5 @@
 use super::enums::*;
-use libc::{c_void, c_int, c_char};
+use libc::{c_char, c_int, c_void};
 
 /// A main loop object.
 /// Main loops of this type aren't very flexible since they only support a single wakeup type.
@@ -78,35 +78,35 @@ pub struct AvahiClient {
 
 pub type ClientCallback = extern "C" fn(*const AvahiClient, AvahiClientState, *const c_void);
 
-pub type ServiceBrowserCallback = extern "C" fn(*const AvahiServiceBrowser,
-                                                c_int,
-                                                AvahiProtocol,
-                                                AvahiBrowserEvent,
-                                                *const c_char,
-                                                *const c_char,
-                                                *const c_char,
-                                                AvahiLookupResultFlags,
-                                                *const c_void)
-                                               ;
+pub type ServiceBrowserCallback = extern "C" fn(
+    *const AvahiServiceBrowser,
+    c_int,
+    AvahiProtocol,
+    AvahiBrowserEvent,
+    *const c_char,
+    *const c_char,
+    *const c_char,
+    AvahiLookupResultFlags,
+    *const c_void,
+);
 
-pub type ServiceResolverCallback = extern "C" fn(*const AvahiServiceResolver,
-                                                 c_int,
-                                                 AvahiProtocol,
-                                                 AvahiResolverEvent,
-                                                 *const c_char,
-                                                 *const c_char,
-                                                 *const c_char,
-                                                 *const c_char,
-                                                 *const AvahiAddress,
-                                                 u16,
-                                                 *mut AvahiStringList,
-                                                 AvahiLookupResultFlags,
-                                                 *const c_void)
-                                                ;
+pub type ServiceResolverCallback = extern "C" fn(
+    *const AvahiServiceResolver,
+    c_int,
+    AvahiProtocol,
+    AvahiResolverEvent,
+    *const c_char,
+    *const c_char,
+    *const c_char,
+    *const c_char,
+    *const AvahiAddress,
+    u16,
+    *mut AvahiStringList,
+    AvahiLookupResultFlags,
+    *const c_void,
+);
 
-pub type AvahiEntryGroupCallback = extern "C" fn(*const AvahiEntryGroup,
-                                                 AvahiEntryGroupState,
-                                                 *const c_void)
-                                                ;
+pub type AvahiEntryGroupCallback =
+    extern "C" fn(*const AvahiEntryGroup, AvahiEntryGroupState, *const c_void);
 
 pub static AVAHI_ADDRESS_STR_MAX: usize = 4 * 8 + 7 + 1; // 1 is for NUL

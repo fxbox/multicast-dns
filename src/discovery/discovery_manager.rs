@@ -43,8 +43,11 @@ impl DiscoveryManager {
         DiscoveryManager { adapter: adapter }
     }
 
-    pub fn discover_services(&self, service_type: &str, listeners: DiscoveryListeners)
-        -> Result<(), Error> {
+    pub fn discover_services(
+        &self,
+        service_type: &str,
+        listeners: DiscoveryListeners,
+    ) -> Result<(), Error> {
         self.adapter.start_discovery(service_type, listeners)
     }
 

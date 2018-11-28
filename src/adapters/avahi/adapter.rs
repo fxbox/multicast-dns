@@ -9,9 +9,9 @@ use bindings::avahi::*;
 use discovery::discovery_manager::*;
 
 use adapters::adapter::*;
-use adapters::avahi::utils::*;
 use adapters::avahi::callbacks::*;
 use adapters::avahi::errors::Error as AvahiError;
+use adapters::avahi::utils::*;
 use adapters::errors::Error as AdapterError;
 
 pub struct Channel<T> {
@@ -71,11 +71,13 @@ impl AvahiAdapter {
 
         let sender = Box::new(self.client_channel.sender.clone());
         let avahi_client = unsafe {
-            avahi_client_new(poll,
-                             AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
-                             *Box::new(AvahiCallbacks::client_callback),
-                             Box::into_raw(sender) as *mut _ as *mut c_void,
-                             &mut client_error_code)
+            avahi_client_new(
+                poll,
+                AvahiClientFlags::AVAHI_CLIENT_IGNORE_USER_CONFIG,
+                *Box::new(AvahiCallbacks::client_callback),
+                Box::into_raw(sender) as *mut _ as *mut c_void,
+                &mut client_error_code,
+            )
         };
 
         // Check that we've created client successfully, otherwise try to resolve error
@@ -159,8 +161,11 @@ impl AvahiAdapter {
 }
 
 impl DiscoveryAdapter for AvahiAdapter {
-    fn start_discovery(&self, service_type: &str, listeners: DiscoveryListeners)
-        -> Result<(), AdapterError>{
+    fn start_discovery(
+        &self,
+        service_type: &str,
+        listeners: DiscoveryListeners,
+    ) -> Result<(), AdapterError> {
         debug!("Discovery started for the service: {}.", service_type);
 
         try!(self.initialize());
@@ -169,14 +174,16 @@ impl DiscoveryAdapter for AvahiAdapter {
         let sender = Box::new(self.service_browser_channel.sender.clone());
 
         let avahi_service_browser = unsafe {
-            avahi_service_browser_new(self.client.get().unwrap(),
-                                      AvahiIfIndex::AVAHI_IF_UNSPEC,
-                                      AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                      service_type,
-                                      ptr::null_mut(),
-                                      AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
-                                      *Box::new(AvahiCallbacks::browse_callback),
-                                      Box::into_raw(sender) as *mut _ as *mut c_void)
+            avahi_service_browser_new(
+                self.client.get().unwrap(),
+                AvahiIfIndex::AVAHI_IF_UNSPEC,
+                AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                service_type,
+                ptr::null_mut(),
+                AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
+                *Box::new(AvahiCallbacks::browse_callback),
+                Box::into_raw(sender) as *mut _ as *mut c_void,
+            )
         };
 
         self.service_browser.set(Some(avahi_service_browser));
@@ -213,7 +220,10 @@ impl DiscoveryAdapter for AvahiAdapter {
                 }
                 AvahiBrowserEvent::AVAHI_BROWSER_FAILURE => {
                     let error_code = unsafe { avahi_client_errno(self.client.get().unwrap()) };
-                    error!("Service browser failed: {}", AvahiError::from_error_code(error_code));
+                    error!(
+                        "Service browser failed: {}",
+                        AvahiError::from_error_code(error_code)
+                    );
                 }
                 _ => {}
             }
@@ -231,16 +241,18 @@ impl DiscoveryAdapter for AvahiAdapter {
         let (tx, rx) = mpsc::channel::<ResolveCallbackParameters>();
 
         let avahi_service_resolver = unsafe {
-            avahi_service_resolver_new(self.client.get().unwrap(),
-                                       service.interface,
-                                       service_protocol_to_avahi_protocol(service.protocol),
-                                       AvahiUtils::to_c_string(service.name.unwrap()).as_ptr(),
-                                       AvahiUtils::to_c_string(service.type_name.unwrap()).as_ptr(),
-                                       AvahiUtils::to_c_string(service.domain.unwrap()).as_ptr(),
-                                       AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                       AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
-                                       *Box::new(AvahiCallbacks::resolve_callback),
-                                       Box::into_raw(Box::new(tx)) as *mut _ as *mut c_void)
+            avahi_service_resolver_new(
+                self.client.get().unwrap(),
+                service.interface,
+                service_protocol_to_avahi_protocol(service.protocol),
+                AvahiUtils::to_c_string(service.name.unwrap()).as_ptr(),
+                AvahiUtils::to_c_string(service.type_name.unwrap()).as_ptr(),
+                AvahiUtils::to_c_string(service.domain.unwrap()).as_ptr(),
+                AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                AvahiLookupFlags::AVAHI_LOOKUP_UNSPEC,
+                *Box::new(AvahiCallbacks::resolve_callback),
+                Box::into_raw(Box::new(tx)) as *mut _ as *mut c_void,
+            )
         };
 
         for message in rx.iter() {
@@ -305,9 +317,8 @@ impl HostAdapter for AvahiAdapter {
 
         try!(self.initialize());
 
-        let host_name_fqdn_ptr = unsafe {
-            avahi_client_get_host_name_fqdn(self.client.get().unwrap())
-        };
+        let host_name_fqdn_ptr =
+            unsafe { avahi_client_get_host_name_fqdn(self.client.get().unwrap()) };
 
         AvahiUtils::to_owned_string(host_name_fqdn_ptr)
             .ok_or(AdapterError::Internal("Name is not available".to_owned()))
@@ -375,8 +386,7 @@ impl HostAdapter for AvahiAdapter {
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(original_host_name) };
 
-        alternative_host_name
-            .ok_or(AdapterError::Internal("Name is not available".to_owned()))
+        alternative_host_name.ok_or(AdapterError::Internal("Name is not available".to_owned()))
     }
 
     fn add_name_alias(&self, host_name: &str) -> Result<(), AdapterError> {
@@ -390,9 +400,11 @@ impl HostAdapter for AvahiAdapter {
         let client = self.client.get().unwrap();
 
         let entry_group = unsafe {
-            avahi_entry_group_new(client,
-                                  *Box::new(AvahiCallbacks::entry_group_callback),
-                                  ptr::null_mut())
+            avahi_entry_group_new(
+                client,
+                *Box::new(AvahiCallbacks::entry_group_callback),
+                ptr::null_mut(),
+            )
         };
 
         let rdata = &name_fqdn_to_cname_rdata(&try!(self.get_name_fqdn()));
@@ -400,16 +412,18 @@ impl HostAdapter for AvahiAdapter {
         let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 
         let result_code = unsafe {
-            avahi_entry_group_add_record(entry_group,
-                                         -1,
-                                         AvahiProtocol::AVAHI_PROTO_UNSPEC,
-                                         AvahiPublishFlags::AVAHI_PUBLISH_USE_MULTICAST,
-                                         host_name,
-                                         AvahiRecordClass::AVAHI_IN,
-                                         AvahiRecordType::AVAHI_CNAME,
-                                         60,
-                                         rdata.as_ptr() as *mut _,
-                                         rdata.len())
+            avahi_entry_group_add_record(
+                entry_group,
+                -1,
+                AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                AvahiPublishFlags::AVAHI_PUBLISH_USE_MULTICAST,
+                host_name,
+                AvahiRecordClass::AVAHI_IN,
+                AvahiRecordType::AVAHI_CNAME,
+                60,
+                rdata.as_ptr() as *mut _,
+                rdata.len(),
+            )
         };
 
         if result_code != 0 {

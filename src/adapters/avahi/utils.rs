@@ -1,6 +1,6 @@
+use libc::{c_char, c_void};
 use std::ffi::CStr;
 use std::ffi::CString;
-use libc::{c_char, c_void};
 
 use bindings::avahi::*;
 
@@ -15,7 +15,11 @@ impl AvahiUtils {
         if c_string.is_null() {
             None
         } else {
-            Some(unsafe { CStr::from_ptr(c_string) }.to_string_lossy().into_owned())
+            Some(
+                unsafe { CStr::from_ptr(c_string) }
+                    .to_string_lossy()
+                    .into_owned(),
+            )
         }
     }
 
@@ -24,7 +28,9 @@ impl AvahiUtils {
             None
         } else {
             let address_vector = Vec::with_capacity(AVAHI_ADDRESS_STR_MAX);
-            unsafe { avahi_address_snprint(address_vector.as_ptr(), AVAHI_ADDRESS_STR_MAX, address) };
+            unsafe {
+                avahi_address_snprint(address_vector.as_ptr(), AVAHI_ADDRESS_STR_MAX, address)
+            };
 
             AvahiUtils::to_owned_string(address_vector.as_ptr())
         }

@@ -41,16 +41,17 @@ pub struct ResolveCallbackParameters {
 
 impl AvahiCallbacks {
     #[allow(unused_variables)]
-    pub extern "C" fn client_callback(client: *const AvahiClient,
-                                      state: AvahiClientState,
-                                      userdata: *const c_void) {
+    pub extern "C" fn client_callback(
+        client: *const AvahiClient,
+        state: AvahiClientState,
+        userdata: *const c_void,
+    ) {
         let parameters = ClientCallbackParameters { state: state };
 
         debug!("Client state has changed: {:?}.", parameters);
 
-        let sender: Box<mpsc::Sender<ClientCallbackParameters>> = unsafe {
-            Box::from_raw(userdata as *mut _)
-        };
+        let sender: Box<mpsc::Sender<ClientCallbackParameters>> =
+            unsafe { Box::from_raw(userdata as *mut _) };
 
         sender.send(parameters).unwrap();
 
@@ -59,16 +60,17 @@ impl AvahiCallbacks {
     }
 
     #[allow(unused_variables)]
-    pub extern "C" fn browse_callback(service_browser: *const AvahiServiceBrowser,
-                                      interface: c_int,
-                                      protocol: AvahiProtocol,
-                                      event: AvahiBrowserEvent,
-                                      name: *const c_char,
-                                      service_type: *const c_char,
-                                      domain: *const c_char,
-                                      flags: AvahiLookupResultFlags,
-                                      userdata: *const c_void) {
-
+    pub extern "C" fn browse_callback(
+        service_browser: *const AvahiServiceBrowser,
+        interface: c_int,
+        protocol: AvahiProtocol,
+        event: AvahiBrowserEvent,
+        name: *const c_char,
+        service_type: *const c_char,
+        domain: *const c_char,
+        flags: AvahiLookupResultFlags,
+        userdata: *const c_void,
+    ) {
         let parameters = BrowseCallbackParameters {
             event: event,
             interface: interface,
@@ -81,9 +83,8 @@ impl AvahiCallbacks {
 
         debug!("Service state has changed: {:?}.", parameters);
 
-        let sender: Box<mpsc::Sender<Option<BrowseCallbackParameters>>> = unsafe {
-            Box::from_raw(userdata as *mut _)
-        };
+        let sender: Box<mpsc::Sender<Option<BrowseCallbackParameters>>> =
+            unsafe { Box::from_raw(userdata as *mut _) };
 
         sender.send(Some(parameters)).unwrap();
 
@@ -92,19 +93,21 @@ impl AvahiCallbacks {
     }
 
     #[allow(unused_variables)]
-    pub extern "C" fn resolve_callback(r: *const AvahiServiceResolver,
-                                       interface: c_int,
-                                       protocol: AvahiProtocol,
-                                       event: AvahiResolverEvent,
-                                       name: *const c_char,
-                                       service_type: *const c_char,
-                                       domain: *const c_char,
-                                       host_name: *const c_char,
-                                       address: *const AvahiAddress,
-                                       port: u16,
-                                       txt: *mut AvahiStringList,
-                                       flags: AvahiLookupResultFlags,
-                                       userdata: *const c_void) {
+    pub extern "C" fn resolve_callback(
+        r: *const AvahiServiceResolver,
+        interface: c_int,
+        protocol: AvahiProtocol,
+        event: AvahiResolverEvent,
+        name: *const c_char,
+        service_type: *const c_char,
+        domain: *const c_char,
+        host_name: *const c_char,
+        address: *const AvahiAddress,
+        port: u16,
+        txt: *mut AvahiStringList,
+        flags: AvahiLookupResultFlags,
+        userdata: *const c_void,
+    ) {
         let parameters = ResolveCallbackParameters {
             event: event,
             address: AvahiUtils::parse_address(address),
@@ -121,17 +124,18 @@ impl AvahiCallbacks {
 
         debug!("Service resolution state has changed: {:?}.", parameters);
 
-        let sender: Box<mpsc::Sender<ResolveCallbackParameters>> = unsafe {
-            Box::from_raw(userdata as *mut _)
-        };
+        let sender: Box<mpsc::Sender<ResolveCallbackParameters>> =
+            unsafe { Box::from_raw(userdata as *mut _) };
 
         sender.send(parameters).unwrap();
     }
 
     #[allow(unused_variables)]
-    pub extern "C" fn entry_group_callback(group: *const AvahiEntryGroup,
-                                           state: AvahiEntryGroupState,
-                                           userdata: *const c_void) {
+    pub extern "C" fn entry_group_callback(
+        group: *const AvahiEntryGroup,
+        state: AvahiEntryGroupState,
+        userdata: *const c_void,
+    ) {
         debug!("Entry group state has changed to {:?}.", state);
     }
 }
