@@ -31,24 +31,24 @@ pub struct AvahiAdapter {
 
 fn avahi_protocol_to_service_protocol(protocol: AvahiProtocol) -> ServiceProtocol {
     match protocol {
-        AvahiProtocol::AVAHI_PROTO_INET => return ServiceProtocol::IPv4,
-        AvahiProtocol::AVAHI_PROTO_INET6 => return ServiceProtocol::IPv6,
-        AvahiProtocol::AVAHI_PROTO_UNSPEC => return ServiceProtocol::Uspecified,
+        AvahiProtocol::AVAHI_PROTO_INET => ServiceProtocol::IPv4,
+        AvahiProtocol::AVAHI_PROTO_INET6 => ServiceProtocol::IPv6,
+        AvahiProtocol::AVAHI_PROTO_UNSPEC => ServiceProtocol::Unspecified,
     }
 }
 
 fn service_protocol_to_avahi_protocol(protocol: ServiceProtocol) -> AvahiProtocol {
     match protocol {
-        ServiceProtocol::IPv4 => return AvahiProtocol::AVAHI_PROTO_INET,
-        ServiceProtocol::IPv6 => return AvahiProtocol::AVAHI_PROTO_INET6,
-        ServiceProtocol::Uspecified => return AvahiProtocol::AVAHI_PROTO_UNSPEC,
+        ServiceProtocol::IPv4 => AvahiProtocol::AVAHI_PROTO_INET,
+        ServiceProtocol::IPv6 => AvahiProtocol::AVAHI_PROTO_INET6,
+        ServiceProtocol::Unspecified => AvahiProtocol::AVAHI_PROTO_UNSPEC,
     }
 }
 
 fn name_fqdn_to_cname_rdata(name_fqdn: &str) -> Vec<u8> {
     let mut rdata: Vec<u8> = Vec::new();
 
-    for part in name_fqdn.split(".") {
+    for part in name_fqdn.split('.') {
         rdata.push(part.len() as u8);
         rdata.extend_from_slice(part.as_bytes());
     }
@@ -116,7 +116,7 @@ impl AvahiAdapter {
 
         debug!("Threaded poll is created.");
 
-        try!(self.create_client(abstracted_poll));
+        self.create_client(abstracted_poll)?;
 
         let result_code = unsafe { avahi_threaded_poll_start(threaded_poll) };
         if result_code != 0 {
@@ -168,7 +168,7 @@ impl DiscoveryAdapter for AvahiAdapter {
     ) -> Result<(), AdapterError> {
         debug!("Discovery started for the service: {}.", service_type);
 
-        try!(self.initialize());
+        self.initialize()?;
 
         let service_type = AvahiUtils::to_c_string(service_type.to_owned()).into_raw();
         let sender = Box::new(self.service_browser_channel.sender.clone());
@@ -304,31 +304,31 @@ impl HostAdapter for AvahiAdapter {
     fn get_name(&self) -> Result<String, AdapterError> {
         debug!("Host name is requested.");
 
-        try!(self.initialize());
+        self.initialize()?;
 
         let host_name_ptr = unsafe { avahi_client_get_host_name(self.client.get().unwrap()) };
 
         AvahiUtils::to_owned_string(host_name_ptr)
-            .ok_or(AdapterError::Internal("Name is not available".to_owned()))
+            .ok_or_else(|| AdapterError::Internal("Name is not available".to_owned()))
     }
 
     fn get_name_fqdn(&self) -> Result<String, AdapterError> {
         debug!("Host name FQDN is requested.");
 
-        try!(self.initialize());
+        self.initialize()?;
 
         let host_name_fqdn_ptr =
             unsafe { avahi_client_get_host_name_fqdn(self.client.get().unwrap()) };
 
         AvahiUtils::to_owned_string(host_name_fqdn_ptr)
-            .ok_or(AdapterError::Internal("Name is not available".to_owned()))
+            .ok_or_else(|| AdapterError::Internal("Name is not available".to_owned()))
     }
 
     fn set_name(&self, host_name: &str) -> Result<String, AdapterError> {
         debug!("Host name change (-> {}) is requested.", host_name);
 
-        try!(self.initialize());
-        let current_host_name = try!(self.get_name());
+        self.initialize()?;
+        let current_host_name = self.get_name()?;
 
         if host_name == current_host_name {
             debug!("No need to change name, name is already set.");
@@ -386,13 +386,14 @@ impl HostAdapter for AvahiAdapter {
         // Reconstruct string to properly free up memory.
         unsafe { CString::from_raw(original_host_name) };
 
-        alternative_host_name.ok_or(AdapterError::Internal("Name is not available".to_owned()))
+        alternative_host_name
+            .ok_or_else(|| AdapterError::Internal("Name is not available".to_owned()))
     }
 
     fn add_name_alias(&self, host_name: &str) -> Result<(), AdapterError> {
-        try!(self.initialize());
+        self.initialize()?;
 
-        let current_host_name = try!(self.get_name());
+        let current_host_name = self.get_name()?;
         if host_name == current_host_name {
             return Ok(());
         }
@@ -407,7 +408,7 @@ impl HostAdapter for AvahiAdapter {
             )
         };
 
-        let rdata = &name_fqdn_to_cname_rdata(&try!(self.get_name_fqdn()));
+        let rdata = &name_fqdn_to_cname_rdata(&self.get_name_fqdn()?);
 
         let host_name = AvahiUtils::to_c_string(host_name.to_owned()).into_raw();
 

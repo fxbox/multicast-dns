@@ -55,7 +55,7 @@ pub enum AvahiBrowserEvent {
 }
 
 #[repr(C)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 #[allow(dead_code, non_camel_case_types)]
 pub enum AvahiProtocol {
     /// IPv4.
@@ -108,7 +108,7 @@ pub enum AvahiDomainBrowserType {
 
 #[repr(C)]
 #[allow(dead_code, non_camel_case_types)]
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum AvahiEntryGroupState {
     AVAHI_ENTRY_GROUP_UNCOMMITED,
     AVAHI_ENTRY_GROUP_REGISTERING,

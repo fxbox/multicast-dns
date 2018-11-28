@@ -3,11 +3,11 @@ use adapters::adapter::DiscoveryAdapter;
 use adapters::errors::Error;
 use adapters::PlatformDependentAdapter;
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum ServiceProtocol {
     IPv4 = 0,
     IPv6 = 1,
-    Uspecified = -1,
+    Unspecified = -1,
 }
 
 #[derive(Debug)]
@@ -37,10 +37,8 @@ pub struct DiscoveryManager {
 }
 
 impl DiscoveryManager {
-    pub fn new() -> DiscoveryManager {
-        let adapter: Box<DiscoveryAdapter> = Box::new(PlatformDependentAdapter::new());
-
-        DiscoveryManager { adapter: adapter }
+    pub fn new() -> Self {
+        Default::default()
     }
 
     pub fn discover_services(
@@ -57,5 +55,13 @@ impl DiscoveryManager {
 
     pub fn stop_service_discovery(&self) {
         self.adapter.stop_discovery();
+    }
+}
+
+impl Default for DiscoveryManager {
+    fn default() -> Self {
+        let adapter: Box<DiscoveryAdapter> = Box::new(PlatformDependentAdapter::new());
+
+        DiscoveryManager { adapter }
     }
 }

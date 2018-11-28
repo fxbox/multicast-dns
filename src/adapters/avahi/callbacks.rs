@@ -46,7 +46,7 @@ impl AvahiCallbacks {
         state: AvahiClientState,
         userdata: *const c_void,
     ) {
-        let parameters = ClientCallbackParameters { state: state };
+        let parameters = ClientCallbackParameters { state };
 
         debug!("Client state has changed: {:?}.", parameters);
 
@@ -72,13 +72,13 @@ impl AvahiCallbacks {
         userdata: *const c_void,
     ) {
         let parameters = BrowseCallbackParameters {
-            event: event,
-            interface: interface,
-            protocol: protocol,
+            event,
+            interface,
+            protocol,
             name: AvahiUtils::to_owned_string(name),
             service_type: AvahiUtils::to_owned_string(service_type),
             domain: AvahiUtils::to_owned_string(domain),
-            flags: flags,
+            flags,
         };
 
         debug!("Service state has changed: {:?}.", parameters);
@@ -109,17 +109,17 @@ impl AvahiCallbacks {
         userdata: *const c_void,
     ) {
         let parameters = ResolveCallbackParameters {
-            event: event,
+            event,
             address: AvahiUtils::parse_address(address),
-            interface: interface,
-            protocol: protocol,
-            port: port,
+            interface,
+            protocol,
+            port,
             host_name: AvahiUtils::to_owned_string(host_name),
             name: AvahiUtils::to_owned_string(name),
             service_type: AvahiUtils::to_owned_string(service_type),
             domain: AvahiUtils::to_owned_string(domain),
             txt: AvahiUtils::parse_txt(txt),
-            flags: flags,
+            flags,
         };
 
         debug!("Service resolution state has changed: {:?}.", parameters);

@@ -8,10 +8,8 @@ pub struct HostManager {
 }
 
 impl HostManager {
-    pub fn new() -> HostManager {
-        let adapter: Box<HostAdapter> = Box::new(PlatformDependentAdapter::new());
-
-        HostManager { adapter: adapter }
+    pub fn new() -> Self {
+        Default::default()
     }
 
     pub fn get_name(&self) -> Result<String, Error> {
@@ -32,5 +30,13 @@ impl HostManager {
 
     pub fn add_name_alias(&self, name: &str) -> Result<(), Error> {
         self.adapter.add_name_alias(name)
+    }
+}
+
+impl Default for HostManager {
+    fn default() -> Self {
+        let adapter: Box<HostAdapter> = Box::new(PlatformDependentAdapter::new());
+
+        HostManager { adapter }
     }
 }

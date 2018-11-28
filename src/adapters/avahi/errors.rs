@@ -138,7 +138,7 @@ impl StdError for Error {
 impl Error {
     pub fn from_error_code(error_code: i32) -> Error {
         let error_string = AvahiUtils::to_owned_string(unsafe { avahi_strerror(error_code) })
-            .unwrap_or("Description is not available.".to_owned());
+            .unwrap_or_else(|| "Description is not available.".to_owned());
 
         match error_code {
             -1 => Error::Failure(error_code, error_string),
