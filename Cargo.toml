@@ -1,7 +1,10 @@
 [package]
 name = "multicast_dns"
-version = "0.4.0"
+version = "0.4.1"
 authors = ["Aleh Zasypkin <aleh.zasypkin@gmail.com>"]
+license = "MPL-2.0"
+keywords = ["multicast", "discovery", "mdns", "dns", "avahi"]
+description = "Simple Rust wrapper around Avahi Daemon"
 
 [dependencies]
 libc = "0.2.44"
