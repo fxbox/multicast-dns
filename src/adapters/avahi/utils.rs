@@ -23,10 +23,10 @@ impl AvahiUtils {
         if address.is_null() {
             None
         } else {
-            let address_vector = Vec::with_capacity(AVAHI_ADDRESS_STR_MAX).as_ptr();
-            unsafe { avahi_address_snprint(address_vector, AVAHI_ADDRESS_STR_MAX, address) };
+            let address_vector = Vec::with_capacity(AVAHI_ADDRESS_STR_MAX);
+            unsafe { avahi_address_snprint(address_vector.as_ptr(), AVAHI_ADDRESS_STR_MAX, address) };
 
-            AvahiUtils::to_owned_string(address_vector)
+            AvahiUtils::to_owned_string(address_vector.as_ptr())
         }
     }
 

@@ -136,7 +136,7 @@ impl StdError for Error {
 }
 
 impl Error {
-    pub fn fromErrorCode(error_code: i32) -> Error {
+    pub fn from_error_code(error_code: i32) -> Error {
         let error_string = AvahiUtils::to_owned_string(unsafe {
             avahi_strerror(error_code)
         }).unwrap_or("Description is not available.".to_owned());

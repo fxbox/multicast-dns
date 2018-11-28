@@ -2,8 +2,9 @@ use super::enums::*;
 use libc::{c_void, c_int, c_char};
 
 /// A main loop object.
-/// Main loops of this type aren't very flexible since they only support a single wakeup type. 
+/// Main loops of this type aren't very flexible since they only support a single wakeup type.
 #[repr(C)]
+#[allow(dead_code)]
 pub struct AvahiSimplePoll;
 
 #[repr(C)]
