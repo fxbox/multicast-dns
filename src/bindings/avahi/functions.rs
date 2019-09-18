@@ -300,6 +300,19 @@ extern "C" {
         size: usize,
     ) -> c_int;
 
+    pub fn avahi_entry_group_add_service(
+        group: *mut AvahiEntryGroup,
+        interface: c_int,
+        protocol: AvahiProtocol,
+        flags: AvahiPublishFlags,
+        name: *const c_char,
+        record_type: *const c_char,
+        domain: *const c_char,
+        host: *const c_char,
+        port: u16,
+        text: *const c_void,
+    ) -> c_int;
+
     pub fn avahi_entry_group_commit(group: *mut AvahiEntryGroup) -> c_int;
 
     pub fn avahi_entry_group_get_state(group: *mut AvahiEntryGroup) -> c_int;

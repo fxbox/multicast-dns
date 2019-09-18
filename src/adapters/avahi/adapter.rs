@@ -445,6 +445,62 @@ impl HostAdapter for AvahiAdapter {
 
         Ok(())
     }
+
+    fn announce_service(&self, service_name: &str, service_type: &str, port: u16) -> Result<(), AdapterError> {
+        self.initialize()?;
+        let client = self.client.get().unwrap();
+        let entry_group = unsafe {
+            avahi_entry_group_new(
+                client,
+                *Box::new(AvahiCallbacks::entry_group_callback),
+                ptr::null_mut(),
+            )
+        };
+
+        if entry_group == 0 as _ {
+            let code = unsafe {
+                avahi_client_errno(client)
+            };
+            let error = AvahiError::from_error_code(code);
+            return Err(From::from(error));
+        }
+
+        let service_name = AvahiUtils::to_c_string(service_name.to_owned()).into_raw();
+        let service_type = AvahiUtils::to_c_string(service_type.to_owned()).into_raw();
+        let result_code = unsafe {
+            avahi_entry_group_add_service(
+                entry_group,
+                -1,
+                AvahiProtocol::AVAHI_PROTO_UNSPEC,
+                AvahiPublishFlags::AVAHI_PUBLISH_USE_MULTICAST,
+                service_name,
+                service_type,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                port,
+                ptr::null_mut(),
+            )
+        };
+
+        if result_code != 0 {
+            let error = AvahiError::from_error_code(result_code);
+            error!("Failed to add a new entry group record: {}", error);
+            return Err(From::from(error));
+        }
+
+        let result_code = unsafe { avahi_entry_group_commit(entry_group) };
+        if result_code != 0 {
+            let error = AvahiError::from_error_code(result_code);
+            error!("Failed to commit new entry group record: {}", error);
+            return Err(From::from(error));
+        }
+
+        // Reconstruct string to properly free up memory.
+        unsafe { CString::from_raw(service_type) };
+        unsafe { CString::from_raw(service_name) };
+
+        Ok(())
+    }
 }
 
 impl Drop for AvahiAdapter {
