@@ -24,16 +24,16 @@ pub struct ServiceInfo {
 }
 
 pub struct DiscoveryListeners<'a> {
-    pub on_service_discovered: Option<&'a Fn(ServiceInfo)>,
-    pub on_all_discovered: Option<&'a Fn()>,
+    pub on_service_discovered: Option<&'a dyn Fn(ServiceInfo)>,
+    pub on_all_discovered: Option<&'a dyn Fn()>,
 }
 
 pub struct ResolveListeners<'a> {
-    pub on_service_resolved: Option<&'a Fn(ServiceInfo)>,
+    pub on_service_resolved: Option<&'a dyn Fn(ServiceInfo)>,
 }
 
 pub struct DiscoveryManager {
-    adapter: Box<DiscoveryAdapter>,
+    adapter: Box<dyn DiscoveryAdapter>,
 }
 
 impl DiscoveryManager {
@@ -60,7 +60,7 @@ impl DiscoveryManager {
 
 impl Default for DiscoveryManager {
     fn default() -> Self {
-        let adapter: Box<DiscoveryAdapter> = Box::new(PlatformDependentAdapter::new());
+        let adapter: Box<dyn DiscoveryAdapter> = Box::new(PlatformDependentAdapter::new());
 
         DiscoveryManager { adapter }
     }

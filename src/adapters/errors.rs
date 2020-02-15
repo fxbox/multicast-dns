@@ -17,14 +17,7 @@ impl fmt::Display for Error {
 }
 
 impl StdError for Error {
-    fn description(&self) -> &str {
-        match *self {
-            Error::AdapterFailure(ref message) => message,
-            Error::Internal(ref message) => message,
-        }
-    }
-
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         None
     }
 }
@@ -34,6 +27,6 @@ use adapters::avahi;
 #[cfg(target_os = "linux")]
 impl From<avahi::errors::Error> for Error {
     fn from(err: avahi::errors::Error) -> Error {
-        Error::AdapterFailure(format!("Avahi - {}", err.description()))
+        Error::AdapterFailure(format!("Avahi - {}", err))
     }
 }

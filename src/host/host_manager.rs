@@ -4,7 +4,7 @@ use adapters::errors::Error;
 use adapters::PlatformDependentAdapter;
 
 pub struct HostManager {
-    adapter: Box<HostAdapter>,
+    adapter: Box<dyn HostAdapter>,
 }
 
 impl HostManager {
@@ -39,7 +39,7 @@ impl HostManager {
 
 impl Default for HostManager {
     fn default() -> Self {
-        let adapter: Box<HostAdapter> = Box::new(PlatformDependentAdapter::new());
+        let adapter: Box<dyn HostAdapter> = Box::new(PlatformDependentAdapter::new());
 
         HostManager { adapter }
     }

@@ -1,5 +1,5 @@
 use std::error::Error as StdError;
-use std::fmt;
+use std::fmt::{Display, Formatter};
 
 use adapters::avahi::utils::*;
 use bindings::avahi::*;
@@ -63,15 +63,9 @@ pub enum Error {
     Unknown(i32, String),
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str(self.description())
-    }
-}
-
-impl StdError for Error {
-    fn description(&self) -> &str {
-        match *self {
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.write_str(match *self {
             Error::Failure(_, ref message) => message,
             Error::BadState(_, ref message) => message,
             Error::InvalidHostName(_, ref message) => message,
@@ -127,10 +121,12 @@ impl StdError for Error {
             Error::NoChange(_, ref message) => message,
             Error::Max(_, ref message) => message,
             Error::Unknown(_, ref message) => message,
-        }
+        })
     }
+}
 
-    fn cause(&self) -> Option<&StdError> {
+impl StdError for Error {
+    fn cause(&self) -> Option<&dyn StdError> {
         None
     }
 }
