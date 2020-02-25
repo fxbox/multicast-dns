@@ -470,7 +470,7 @@ impl HostAdapter for AvahiAdapter {
         let result_code = unsafe {
             avahi_entry_group_add_service(
                 entry_group,
-                -1,
+                AvahiIfIndex::AVAHI_IF_UNSPEC,
                 AvahiProtocol::AVAHI_PROTO_UNSPEC,
                 AvahiPublishFlags::AVAHI_PUBLISH_USE_MULTICAST,
                 service_name,

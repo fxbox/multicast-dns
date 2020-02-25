@@ -302,7 +302,7 @@ extern "C" {
 
     pub fn avahi_entry_group_add_service(
         group: *mut AvahiEntryGroup,
-        interface: c_int,
+        interface: AvahiIfIndex,
         protocol: AvahiProtocol,
         flags: AvahiPublishFlags,
         name: *const c_char,
