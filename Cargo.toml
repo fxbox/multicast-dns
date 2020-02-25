@@ -7,5 +7,5 @@ keywords = ["multicast", "discovery", "mdns", "dns", "avahi"]
 description = "Simple Rust wrapper around Avahi Daemon"
 
 [dependencies]
-libc = "0.2.48"
-log = "0.4.6"
+libc = "0.2.66"
+log = "0.4.8"

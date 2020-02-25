@@ -18,6 +18,7 @@ pub trait HostAdapter {
     fn is_valid_name(&self, host_name: &str) -> Result<bool, Error>;
     fn get_alternative_name(&self, host_name: &str) -> Result<String, Error>;
     fn add_name_alias(&self, host_name: &str) -> Result<(), Error>;
+    fn announce_service(&self, service_name: &str, service_type: &str, port: u16) -> Result<(), Error>;
 }
 
 pub trait Adapter: DiscoveryAdapter + HostAdapter + Drop {

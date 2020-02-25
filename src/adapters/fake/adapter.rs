@@ -87,6 +87,11 @@ impl HostAdapter for FakeAdapter {
         );
         Ok(())
     }
+
+    fn announce_service(&self, service_name: &str, service_type: &str, port: u16) -> Result<(), Error> {
+        FakeAdapter::print_warning();
+        Ok(())
+    }
 }
 
 impl Drop for FakeAdapter {
